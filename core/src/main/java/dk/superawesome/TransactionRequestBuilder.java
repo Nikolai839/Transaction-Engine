@@ -1,8 +1,8 @@
-package dk.superawesome.transactionEngine;
+package dk.superawesome;
 
-import dk.superawesome.transactionEngine.db.DatabaseExecutor;
-import dk.superawesome.transactionEngine.db.DatabaseSettings;
-import dk.superawesome.transactionEngine.db.Requester;
+import dk.superawesome.db.DatabaseExecutor;
+import dk.superawesome.db.DatabaseSettings;
+import dk.superawesome.db.Requester;
 
 import java.util.Arrays;
 import java.util.Date;

@@ -1,4 +1,4 @@
-package dk.superawesome.transactionEngine.db;
+package dk.superawesome.db;
 
 public interface Requester {
 

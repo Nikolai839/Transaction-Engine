@@ -1,4 +1,4 @@
-package dk.superawesome.transactionEngine;
+package dk.superawesome;
 
 public class Engine {
 

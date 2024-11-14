@@ -1,4 +1,4 @@
-package dk.superawesome.transactionEngine;
+package dk.superawesome;
 
 import java.util.Date;
 

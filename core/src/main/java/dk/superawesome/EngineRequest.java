@@ -1,9 +1,9 @@
-package dk.superawesome.transactionEngine;
+package dk.superawesome;
 
-import dk.superawesome.transactionEngine.db.DatabaseExecutor;
-import dk.superawesome.transactionEngine.db.DatabaseSettings;
-import dk.superawesome.transactionEngine.db.Requester;
-import dk.superawesome.transactionEngine.exceptions.RequestSetupException;
+import dk.superawesome.db.DatabaseExecutor;
+import dk.superawesome.db.DatabaseSettings;
+import dk.superawesome.db.Requester;
+import dk.superawesome.exceptions.RequestSetupException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
