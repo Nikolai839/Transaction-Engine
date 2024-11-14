@@ -17,7 +17,7 @@ public class EngineRequest<N extends Node> {
         @SuppressWarnings("unchecked")
         public static <N extends Node, B extends Builder<N, B>> Builder<N, B> makeRequest(Class<? extends Builder<N, B>> clazz, DatabaseSettings settings, DatabaseExecutor executor, Requester requester) throws RequestSetupException {
             try {
-                return (Builder<N, B>) clazz.getDeclaredConstructor(DatabaseSettings.class, DatabaseExecutor.class, Requester.class)
+                return clazz.getDeclaredConstructor(DatabaseSettings.class, DatabaseExecutor.class, Requester.class)
                         .newInstance(settings, executor, requester);
             } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
                 throw new RequestSetupException();

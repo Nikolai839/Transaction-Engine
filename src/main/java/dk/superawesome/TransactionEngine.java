@@ -1,9 +1,10 @@
 package dk.superawesome;
 
-import dk.superawesome.db.DatabaseExecutor;
+import dk.superawesome.command.BalEngineCommand;
 import dk.superawesome.db.DatabaseSettings;
 import dk.superawesome.exceptions.RequestException;
 import org.bukkit.Bukkit;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -27,6 +28,11 @@ public final class TransactionEngine extends JavaPlugin {
                 config.getString("db.password"),
                 config.getString("db.database")
         );
+
+        PluginCommand command = getCommand("balengine");
+        if (command != null) {
+            command.setExecutor(new BalEngineCommand());
+        }
 
         try {
             EngineQuery<TransactionNode> query = Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, this.settings, this.databaseController, () -> null)

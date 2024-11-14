@@ -1,4 +1,9 @@
 name: TransactionEngine
-version: '1.0-SNAPSHOT'
-main: dk.superawesome.transactionEngine.TransactionEngine
-api-version: '1.18'
+author: Alek05
+version: '1.0'
+main: dk.superawesome.TransactionEngine
+api-version: '1.13'
+
+commands:
+  transaktioner:
+    usage: Brug /transaktioner
