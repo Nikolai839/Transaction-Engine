@@ -15,7 +15,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.logging.Level;
 
-public class DatabaseController implements DatabaseExecutor<TransactionNode> {
+public class DatabaseController implements DatabaseExecutor<SimpleTransactionNode> {
 
     private static final int MAX_POOL_SIZE = 10;
 
@@ -40,7 +40,7 @@ public class DatabaseController implements DatabaseExecutor<TransactionNode> {
     }
 
     @Override
-    public EngineQuery<TransactionNode> execute(DatabaseSettings settings, Requester requester) throws RequestException, SQLException {
+    public EngineQuery<SimpleTransactionNode> execute(DatabaseSettings settings, Requester requester) throws RequestException, SQLException {
         if (!this.hasAppliedSettings) {
             try {
                 applySettings(settings);

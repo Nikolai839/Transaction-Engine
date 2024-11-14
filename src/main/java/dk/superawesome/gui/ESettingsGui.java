@@ -2,16 +2,37 @@ package dk.superawesome.gui;
 
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
+import dk.superawesome.*;
+import dk.superawesome.exceptions.RequestException;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.function.Function;
+import java.util.logging.Level;
 
 public class ESettingsGui extends AbstractGui {
 
+    private static final List<PostQueryTransformer<TransactionNode, List<TransactionNode>>> sortingMethods = Arrays.asList(SortingMethods.BY_TIME);
     private final Gui gui;
+
+    private int sortingMethod = sortingMethods.indexOf(SortingMethods.BY_TIME);
+    private boolean traceModeEnabled;
+    private boolean groupUserNamesEnabled;
+    private int groupUserNamesMax = -1;
+    private boolean groupUserNamesFrom;
+    private List<String> toUserNames = new ArrayList<>();
+    private List<String> fromUserNames = new ArrayList<>();
+    private double amountFrom;
+    private double amountTo;
+    private Date timeFrom;
+    private Date timeTo;
 
     public ESettingsGui() {
         this.gui = Gui.gui()
@@ -55,6 +76,10 @@ public class ESettingsGui extends AbstractGui {
         gui.addSlotAction(53, event -> openEngineGui((Player) event.getWhoClicked()));
     }
 
+    public void open(Player player) {
+        gui.open(player);
+    }
+
     private void changeSortingMethod() {
 
     }
@@ -84,14 +109,66 @@ public class ESettingsGui extends AbstractGui {
     }
 
     private void resetSettings() {
-
+        this.sortingMethod = sortingMethods.indexOf(SortingMethods.BY_TIME);
+        this.traceModeEnabled = false;
+        this.groupUserNamesEnabled = false;
+        this.groupUserNamesMax = -1;
+        this.groupUserNamesFrom = false;
+        this.toUserNames.clear();
+        this.fromUserNames.clear();
+        this.amountFrom = 0;
+        this.amountTo = 0;
+        this.timeFrom = null;
+        this.timeTo = null;
     }
 
-    public void open(Player player) {
-
-    }
-
+    @SuppressWarnings("unchecked")
     private void openEngineGui(Player player) {
+        try {
+            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), () -> null);
+            builder.to(toUserNames.toArray(String[]::new));
+            builder.from(fromUserNames.toArray(String[]::new));
+            if (this.amountFrom != 0) {
+                builder.from(this.amountFrom);
+            }
+            if (this.amountTo != 0) {
+                builder.from(this.amountTo);
+            }
+            if (this.timeFrom != null) {
+                builder.from(this.timeFrom);
+            }
+            if (this.timeTo != null) {
+                builder.to(this.timeTo);
+            }
 
+            EngineQuery<SimpleTransactionNode> query = Engine.query(builder.build());
+            if (this.traceModeEnabled) {
+                // TODO
+            }
+
+            EngineQuery<? extends TransactionNode> finalQuery;
+            if (this.groupUserNamesEnabled) {
+                Function<SimpleTransactionNode, Object> func;
+                if (this.groupUserNamesFrom) {
+                    func = SimpleTransactionNode::fromUserName;
+                } else {
+                    func = SimpleTransactionNode::toUserName;
+                }
+
+                if (this.groupUserNamesMax == -1) {
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, SimpleTransactionNode.COLLECTOR));
+                } else {
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax), SimpleTransactionNode.COLLECTOR));
+                }
+            } else {
+                finalQuery = query;
+            }
+
+            new EngineGui(((EngineQuery<TransactionNode>)finalQuery).transform(sortingMethods.get(this.sortingMethod)))
+                    .open(player);
+
+        } catch (RequestException ex) {
+            Bukkit.getLogger().log(Level.SEVERE, "Faild to query", ex);
+        }
     }
 }

@@ -7,13 +7,13 @@ import dk.superawesome.db.Requester;
 import java.util.Arrays;
 import java.util.Date;
 
-public class TransactionRequestBuilder extends EngineRequest.Builder<TransactionNode, TransactionRequestBuilder> {
+public class TransactionRequestBuilder extends EngineRequest.Builder<SimpleTransactionNode, TransactionRequestBuilder> {
 
-    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<TransactionNode> executor, Requester requester) {
+    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<SimpleTransactionNode> executor, Requester requester) {
         return new TransactionRequestBuilder(settings, executor, requester);
     }
 
-    public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<TransactionNode> executor, Requester requester) {
+    public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<SimpleTransactionNode> executor, Requester requester) {
         super(settings, executor, requester);
     }
 
@@ -46,7 +46,7 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<Transaction
         return range(0, to);
     }
 
-    private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, TransactionNode> filter, String... names) {
+    private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, SimpleTransactionNode> filter, String... names) {
         addFilter(filter, filter.makeFilter(n -> Arrays.asList(names).contains(n)));
         return this;
     }

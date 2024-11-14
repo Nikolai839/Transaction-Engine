@@ -2,22 +2,20 @@ package dk.superawesome;
 
 import dk.superawesome.command.BalEngineCommand;
 import dk.superawesome.db.DatabaseSettings;
-import dk.superawesome.exceptions.RequestException;
-import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.logging.Level;
 
 public final class TransactionEngine extends JavaPlugin {
 
     private DatabaseSettings settings;
     private final DatabaseController databaseController = new DatabaseController();
 
+    public static TransactionEngine instance;
+
     @Override
     public void onEnable() {
-        // Plugin startup logic
+        instance = this;
 
         saveDefaultConfig();
         FileConfiguration config = getConfig();
@@ -33,20 +31,6 @@ public final class TransactionEngine extends JavaPlugin {
         if (command != null) {
             command.setExecutor(new BalEngineCommand());
         }
-
-        try {
-            EngineQuery<TransactionNode> query = Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, this.settings, this.databaseController, () -> null)
-                    .build())
-                    .transform(PostQueryTransformer.GroupBy.groupBy(TransactionNode::toUserName, Object::equals));
-
-        } catch (RequestException ex) {
-            Bukkit.getLogger().log(Level.SEVERE, "Faild to query", ex);
-        }
-    }
-
-    @Override
-    public void onDisable() {
-        // Plugin shutdown logic
     }
 
     public DatabaseSettings getSettings() {

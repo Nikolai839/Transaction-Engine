@@ -7,7 +7,7 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class TransactionNodeFactory implements NodeFactory<TransactionNode> {
+public class TransactionNodeFactory implements NodeFactory<SimpleTransactionNode> {
 
     public static final String TIME = "time";
     public static final String AMOUNT = "amount";
@@ -27,9 +27,9 @@ public class TransactionNodeFactory implements NodeFactory<TransactionNode> {
     }
 
     @Override
-    public TransactionNode createNode(ResultSet set) throws RequestException {
+    public SimpleTransactionNode createNode(ResultSet set) throws RequestException {
         try {
-            return new TransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
+            return new SimpleTransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
         } catch (SQLException ex) {
             throw new RequestException(ex);
         }

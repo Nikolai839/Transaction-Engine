@@ -14,10 +14,10 @@ public interface QueryFilter<N extends Node> {
 
     class FilterTypes {
 
-        public static FilterType<Date, TransactionNode> TIME = new FilterType<>("time", TransactionNode::time);
-        public static FilterType<Double, TransactionNode> AMOUNT = new FilterType<>("amount", TransactionNode::amount);
-        public static FilterType<String, TransactionNode> FROM_USER = new FilterType<>("from_user", TransactionNode::fromUserName);
-        public static FilterType<String, TransactionNode> TO_USER = new FilterType<>("to_user", TransactionNode::toUserName);
+        public static FilterType<Date, SimpleTransactionNode> TIME = new FilterType<>("time", SimpleTransactionNode::time);
+        public static FilterType<Double, SimpleTransactionNode> AMOUNT = new FilterType<>("amount", SimpleTransactionNode::amount);
+        public static FilterType<String, SimpleTransactionNode> FROM_USER = new FilterType<>("from_user", SimpleTransactionNode::fromUserName);
+        public static FilterType<String, SimpleTransactionNode> TO_USER = new FilterType<>("to_user", SimpleTransactionNode::toUserName);
     }
 
     class FilterType<T, N extends Node> implements Identifiable {

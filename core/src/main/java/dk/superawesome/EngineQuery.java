@@ -24,7 +24,11 @@ public class EngineQuery<N extends Node> {
         }
     }
 
-    private final List<N> nodes = new ArrayList<>();
+    private List<N> nodes = new ArrayList<>();
+
+    private EngineQuery(List<N> nodes) {
+        this.nodes.addAll(nodes);
+    }
 
     private EngineQuery() {}
 
@@ -33,9 +37,8 @@ public class EngineQuery<N extends Node> {
         return this;
     }
 
-    public EngineQuery<N> transform(PostQueryTransformer<N> transformer) {
-        transformer.transform(this.nodes);
-        return this;
+    public <TN extends Node> EngineQuery<TN> transform(PostQueryTransformer<N, List<TN>> transformer) {
+        return new EngineQuery<>(transformer.transform(this.nodes));
     }
 
     public boolean isEmpty() {
