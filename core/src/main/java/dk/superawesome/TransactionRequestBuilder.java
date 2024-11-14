@@ -9,6 +9,10 @@ import java.util.Date;
 
 public class TransactionRequestBuilder extends EngineRequest.Builder<TransactionNode, TransactionRequestBuilder> {
 
+    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<TransactionNode> executor, Requester requester) {
+        return new TransactionRequestBuilder(settings, executor, requester);
+    }
+
     public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<TransactionNode> executor, Requester requester) {
         super(settings, executor, requester);
     }
