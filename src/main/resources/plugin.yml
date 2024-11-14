@@ -1,0 +1,4 @@
+name: TransactionEngine
+version: '1.0-SNAPSHOT'
+main: dk.superawesome.transactionEngine.TransactionEngine
+api-version: '1.18'
