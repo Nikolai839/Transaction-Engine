@@ -1,7 +1,7 @@
-package dk.superawesome.core;
+package dk.superawesome.spigot;
 
-import dk.superawesome.core.command.BalEngineCommand;
 import dk.superawesome.core.db.DatabaseSettings;
+import dk.superawesome.spigot.command.BalEngineCommand;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;

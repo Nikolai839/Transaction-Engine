@@ -1,6 +1,6 @@
-package dk.superawesome.core.command;
+package dk.superawesome.spigot.command;
 
-import dk.superawesome.core.gui.ESettingsGui;
+import dk.superawesome.spigot.gui.EngineSettingsGui;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,7 +23,7 @@ public class BalEngineCommand implements CommandExecutor {
         }
 
         sender.sendMessage("§eÅbner transaktions-menuen op...");
-        new ESettingsGui().open(player);
+        new EngineSettingsGui().open(player);
         return false;
     }
 }

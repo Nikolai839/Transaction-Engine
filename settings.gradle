@@ -1,1 +1,2 @@
 rootProject.name = 'TransactionEngine'
+include(":core", ":spigot")

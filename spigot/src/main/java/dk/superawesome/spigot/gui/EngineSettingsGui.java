@@ -1,9 +1,11 @@
-package dk.superawesome.core.gui;
+package dk.superawesome.spigot.gui;
 
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
 import dk.superawesome.core.exceptions.RequestException;
+import dk.superawesome.spigot.DatabaseController;
+import dk.superawesome.spigot.TransactionEngine;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -17,7 +19,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.logging.Level;
 
-public class ESettingsGui extends AbstractGui {
+public class EngineSettingsGui {
 
     private final Gui gui;
 
@@ -33,7 +35,7 @@ public class ESettingsGui extends AbstractGui {
     private Date timeFrom;
     private Date timeTo;
 
-    public ESettingsGui() {
+    public EngineSettingsGui() {
         this.gui = Gui.gui()
                 .title(Component.text("Transaktioner (Indstillinger)"))
                 .rows(6)
@@ -47,32 +49,15 @@ public class ESettingsGui extends AbstractGui {
             gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7)));
         }
 
-        gui.setItem(0, new GuiItem(Material.SIGN));
-        gui.addSlotAction(0, event -> addToUser((Player) event.getWhoClicked()));
-
-        gui.setItem(18, new GuiItem(Material.SIGN));
-        gui.addSlotAction(18, event -> addFromUser((Player) event.getWhoClicked()));
-
-        gui.setItem(36, new GuiItem(Material.GOLD_INGOT));
-        gui.addSlotAction(36, event -> configureAmountRange((Player) event.getWhoClicked()));
-
-        gui.setItem(38, new GuiItem(Material.COMPASS));
-        gui.addSlotAction(38, event -> configureTimeRange((Player) event.getWhoClicked()));
-
-        gui.setItem(40, new GuiItem(Material.LEATHER_BOOTS));
-        gui.addSlotAction(40, __ -> configureGrouped());
-
-        gui.setItem(41, new GuiItem(Material.ENDER_PEARL));
-        gui.addSlotAction(41, __ -> configureTraceMode());
-
-        gui.setItem(42, new GuiItem(Material.BOOK_AND_QUILL));
-        gui.addSlotAction(42, __ -> changeSortingMethod());
-
-        gui.setItem(35, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 14)));
-        gui.addSlotAction(35, __ -> resetSettings());
-
-        gui.setItem(53, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 5)));
-        gui.addSlotAction(53, event -> openEngineGui((Player) event.getWhoClicked()));
+        gui.setItem(0, new GuiItem(Material.SIGN, event -> addToUser((Player) event.getWhoClicked())));
+        gui.setItem(18, new GuiItem(Material.SIGN, event -> addFromUser((Player) event.getWhoClicked())));
+        gui.setItem(36, new GuiItem(Material.GOLD_INGOT, event -> configureAmountRange((Player) event.getWhoClicked())));
+        gui.setItem(38, new GuiItem(Material.COMPASS, event -> configureTimeRange((Player) event.getWhoClicked())));
+        gui.setItem(40, new GuiItem(Material.LEATHER_BOOTS, __ -> configureGrouped()));
+        gui.setItem(41, new GuiItem(Material.ENDER_PEARL, __ -> configureTraceMode()));
+        gui.setItem(42, new GuiItem(Material.BOOK_AND_QUILL, __ -> changeSortingMethod()));
+        gui.setItem(35, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 14), __ -> resetSettings()));
+        gui.setItem(53, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 5), event -> openEngineGui((Player) event.getWhoClicked())));
     }
 
     public void open(Player player) {
@@ -123,7 +108,9 @@ public class ESettingsGui extends AbstractGui {
 
     private void openEngineGui(Player player) {
         try {
-            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), () -> null);
+            DatabaseController controller = TransactionEngine.instance.getDatabaseController();
+            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
+
             builder.to(toUserNames.toArray(String[]::new));
             builder.from(fromUserNames.toArray(String[]::new));
             if (this.amountFrom != 0) {
@@ -142,29 +129,35 @@ public class ESettingsGui extends AbstractGui {
             EngineQuery<SingleTransactionNode> query = Engine.query(builder.build());
             Node.Collection collection = Node.Collection.SINGLE;
             if (this.traceModeEnabled) {
-                // TODO
                 collection = Node.Collection.GROUPED;
+
+                // TODO
             }
 
             EngineQuery<? extends TransactionNode> finalQuery;
             if (this.groupUserNamesEnabled) {
+                collection = Node.Collection.GROUPED;
+
                 Function<SingleTransactionNode, Object> func;
+                TransactionNode.GroupedTransactionNode.Bound bound;
                 if (this.groupUserNamesFrom) {
+                    bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
                     func = SingleTransactionNode::fromUserName;
                 } else {
+                    bound = TransactionNode.GroupedTransactionNode.Bound.TO;
                     func = SingleTransactionNode::toUserName;
                 }
 
                 if (this.groupUserNamesMax == -1) {
-                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, TransactionNode.GroupedTransactionNode::new));
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
                 } else {
-                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax), TransactionNode.GroupedTransactionNode::new));
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax), nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
                 }
             } else {
                 finalQuery = query;
             }
 
-            new EngineGui(doSort(collection, finalQuery))
+            new EngineGui<>(doSort(collection, finalQuery))
                     .open(player);
 
         } catch (RequestException ex) {

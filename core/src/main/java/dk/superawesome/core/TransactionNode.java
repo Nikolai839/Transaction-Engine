@@ -7,7 +7,11 @@ import java.util.function.Function;
 
 public interface TransactionNode extends Node {
 
-    record GroupedTransactionNode(List<SingleTransactionNode> nodes) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+    record GroupedTransactionNode(List<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+
+        public enum Bound {
+            FROM, TO
+        }
 
         @Override
         public List<SingleTransactionNode> getNodes() {

@@ -7,6 +7,10 @@ import java.util.function.Supplier;
 
 public interface Node {
 
+    default boolean isGrouped() {
+        return false;
+    }
+
     enum Collection {
         SINGLE(SingleNodeComparator::new), GROUPED(GroupedNodeComparator::new);
 

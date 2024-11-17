@@ -1,5 +1,8 @@
-package dk.superawesome.core;
+package dk.superawesome.spigot;
 
+import dk.superawesome.core.EngineQuery;
+import dk.superawesome.core.SingleTransactionNode;
+import dk.superawesome.core.TransactionNodeFactory;
 import dk.superawesome.core.db.DatabaseExecutor;
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;
@@ -22,6 +25,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     private final MariaDbPoolDataSource source = new MariaDbPoolDataSource();
     private boolean hasAppliedSettings;
 
+    private final Requester requester;
     private final TransactionNodeFactory nodeFactory;
     {
         this.nodeFactory = new TransactionNodeFactory(new Settings.Mapped(new HashMap<>(){{
@@ -30,6 +34,19 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             put(TransactionNodeFactory.FROM_USER, "fromplayer");
             put(TransactionNodeFactory.TO_USER, "toplayer");
         }}));
+
+        this.requester = () ->
+                """
+                SELECT p1.id as toplayer, p2.id as fromplayer, l.amount, l.created
+                FROM ems_log l
+                LEFT JOIN players p1 ON p1.id = l.toplayer
+                LEFT JOIN players p2 ON p2.id = l.fromplayer
+                ORDER BY created desc
+                """;
+    }
+
+    public Requester getRequester() {
+        return this.requester;
     }
 
     private void applySettings(DatabaseSettings settings) throws SQLException {

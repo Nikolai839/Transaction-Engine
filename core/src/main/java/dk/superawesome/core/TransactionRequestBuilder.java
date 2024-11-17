@@ -47,7 +47,10 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTrans
     }
 
     private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, SingleTransactionNode> filter, String... names) {
-        addFilter(filter, filter.makeFilter(n -> Arrays.asList(names).contains(n)));
+        if (names.length > 0) {
+            addFilter(filter, filter.makeFilter(n -> Arrays.asList(names).contains(n)));
+        }
+
         return this;
     }
 

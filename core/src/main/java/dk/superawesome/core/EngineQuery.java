@@ -45,6 +45,10 @@ public class EngineQuery<N extends Node> {
         return this.nodes.isEmpty();
     }
 
+    public int size() {
+        return this.nodes.size();
+    }
+
     public List<N> nodes() {
         return this.nodes;
     }
