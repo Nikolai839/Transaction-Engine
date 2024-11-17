@@ -3,9 +3,9 @@ package dk.superawesome.core;
 import dk.superawesome.core.db.Settings;
 import dk.superawesome.core.exceptions.RequestException;
 
-import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Date;
 
 public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode> {
 
@@ -29,9 +29,6 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
     @Override
     public SingleTransactionNode createNode(ResultSet set) throws RequestException {
         try {
-
-            System.out.println(new Date(set.getDate(timeKey).getTime()) + " "+set.getDouble(amountKey) + " "+set.getString(fromUserKey) + " "+  set.getString(toUserKey) + "");
-
             return new SingleTransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
         } catch (SQLException ex) {
             throw new RequestException(ex);

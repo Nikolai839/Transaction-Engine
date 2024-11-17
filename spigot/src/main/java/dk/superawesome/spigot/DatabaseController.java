@@ -41,7 +41,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
                 FROM ems_log l
                 LEFT JOIN players p1 ON p1.id = l.toplayer
                 LEFT JOIN players p2 ON p2.id = l.fromplayer
-                WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL
+                WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1
                 ORDER BY created desc
                 """;
     }

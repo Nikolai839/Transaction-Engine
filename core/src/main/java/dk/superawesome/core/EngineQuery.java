@@ -24,14 +24,16 @@ public class EngineQuery<N extends Node> {
         }
     }
 
+    private final List<N> initialNodes = new ArrayList<>();
     private final List<N> nodes = new ArrayList<>();
 
     private EngineQuery(List<N> nodes) {
         this.nodes.addAll(nodes);
+        this.initialNodes.addAll(nodes);
     }
 
-    public EngineQuery(EngineQuery<N> query) {
-        this(query.nodes());
+    public EngineQuery(EngineQuery<N> query, boolean filteredNodes) {
+        this(filteredNodes ? query.nodes() : query.initialNodes());
     }
 
     private EngineQuery() {}
@@ -60,5 +62,9 @@ public class EngineQuery<N extends Node> {
 
     public List<N> nodes() {
         return this.nodes;
+    }
+
+    public List<N> initialNodes() {
+        return this.initialNodes;
     }
 }

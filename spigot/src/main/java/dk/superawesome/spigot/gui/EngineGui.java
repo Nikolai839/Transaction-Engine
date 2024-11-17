@@ -6,9 +6,11 @@ import dk.superawesome.core.*;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.SkullType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.material.MaterialData;
 
 import java.sql.Date;
 import java.time.format.DateTimeFormatter;
@@ -17,8 +19,6 @@ import java.util.Arrays;
 import java.util.List;
 
 public class EngineGui<N extends TransactionNode> {
-
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
     private final Gui gui;
     private final QueryContext<N> context;
@@ -79,7 +79,7 @@ public class EngineGui<N extends TransactionNode> {
         if (hasDisplayedInitial && !this.context.query().isEmpty()) {
             // clear previous items
             for (int i = 1; i < 8; i++) {
-                for (int j = 1; j < 5; j++) {
+                for (int j = 1; j < 6; j++) {
                     this.gui.setItem(j, i, new GuiItem(Material.AIR));
                 }
             }
@@ -91,6 +91,7 @@ public class EngineGui<N extends TransactionNode> {
                 TransactionVisitor<N> visitor = getVisitor(node);
 
                 ItemStack item = new ItemStack(Material.SKULL_ITEM);
+                item.setData(new MaterialData(SkullType.PLAYER.ordinal()));
                 visitor.applyToItem(node, item, f);
 
                 int slot = (c - scrolledDown) * 9 + i;
@@ -128,7 +129,7 @@ public class EngineGui<N extends TransactionNode> {
 
             List<String> lore = new ArrayList<>();
             lore.add("§fBeløb: §e" + node.amount() + " emeralder");
-            lore.add("§fTidspunkt: §e" + DATE_TIME_FORMATTER.format(node.time().toInstant()));
+            lore.add("§fTidspunkt: §e" + node.time());
             meta.setLore(lore);
 
             item.setItemMeta(meta);
@@ -170,11 +171,13 @@ public class EngineGui<N extends TransactionNode> {
     }
 
     private void clickInspection(Player player, TransactionNode node) {
-        EngineQuery<N> newQuery = new EngineQuery<>(this.context.query());
+        EngineQuery<N> newQuery = new EngineQuery<>(this.context.query(), false);
 
         player.closeInventory();
         new EngineGui<>(
-                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.after(node.getMinTime()))), this.context)
+                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.after(node.getMinTime())))
+                // TODO
+                        .filter((QueryFilter<? super N>) QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(((SingleTransactionNode)node).toUserName()))), this.context)
                 .open(player);
     }
 
