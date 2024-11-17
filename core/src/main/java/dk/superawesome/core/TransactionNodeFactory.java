@@ -29,6 +29,9 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
     @Override
     public SingleTransactionNode createNode(ResultSet set) throws RequestException {
         try {
+
+            System.out.println(new Date(set.getDate(timeKey).getTime()) + " "+set.getDouble(amountKey) + " "+set.getString(fromUserKey) + " "+  set.getString(toUserKey) + "");
+
             return new SingleTransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
         } catch (SQLException ex) {
             throw new RequestException(ex);

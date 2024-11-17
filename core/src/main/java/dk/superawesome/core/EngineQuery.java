@@ -30,10 +30,19 @@ public class EngineQuery<N extends Node> {
         this.nodes.addAll(nodes);
     }
 
+    public EngineQuery(EngineQuery<N> query) {
+        this(query.nodes());
+    }
+
     private EngineQuery() {}
 
-    public EngineQuery<N> filter(EngineRequest<N> request) {
+    public EngineQuery<N> filter(EngineRequest<? super N> request) {
         this.nodes.removeIf(Predicate.not(request::filter));
+        return this;
+    }
+
+    public EngineQuery<N> filter(QueryFilter<? super N> filter) {
+        this.nodes.removeIf(Predicate.not(filter::test));
         return this;
     }
 

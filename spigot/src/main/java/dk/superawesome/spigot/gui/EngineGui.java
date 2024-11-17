@@ -2,18 +2,23 @@ package dk.superawesome.spigot.gui;
 
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
-import dk.superawesome.core.EngineQuery;
-import dk.superawesome.core.SingleTransactionNode;
-import dk.superawesome.core.TransactionNode;
+import dk.superawesome.core.*;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 
+import java.sql.Date;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class EngineGui<N extends TransactionNode> {
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
     private final Gui gui;
     private final QueryContext<N> context;
@@ -43,12 +48,12 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         if (previousContext != null) {
-            this.gui.setItem(44, new GuiItem(Material.ARROW, event -> clickBack((Player) event.getWhoClicked())));
+            this.gui.setItem(45, new GuiItem(Material.ARROW, event -> clickBack((Player) event.getWhoClicked())));
         }
 
-        this.gui.setItem(45, new GuiItem(Material.ARROW, __ -> clickUp()));
+        this.gui.setItem(44, new GuiItem(Material.ARROW, __ -> clickUp()));
         this.gui.setItem(53, new GuiItem(Material.ARROW, __ -> clickDown()));
-        this.gui.setItem(46, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 4), event -> clickNewSettings((Player) event.getWhoClicked())));
+        this.gui.setItem(46, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 14), event -> clickNewSettings((Player) event.getWhoClicked())));
 
         displayNodes();
     }
@@ -73,27 +78,28 @@ public class EngineGui<N extends TransactionNode> {
     private void displayNodes() {
         if (hasDisplayedInitial && !this.context.query().isEmpty()) {
             // clear previous items
-            for (int i = 0; i < 7; i++) {
-                for (int j = 0; j < 4; j++) {
-                    this.gui.setItem(i, j, new GuiItem(Material.AIR));
+            for (int i = 1; i < 8; i++) {
+                for (int j = 1; j < 5; j++) {
+                    this.gui.setItem(j, i, new GuiItem(Material.AIR));
                 }
             }
         }
 
-        int i = 0, c = 0;
+        int i = 0, c = 0, f = 0;
         for (N node : this.context.query().nodes()) {
             if (c >= scrolledDown) {
                 TransactionVisitor<N> visitor = getVisitor(node);
 
                 ItemStack item = new ItemStack(Material.SKULL_ITEM);
-                visitor.applyToItem(node, item);
+                visitor.applyToItem(node, item, f);
 
                 int slot = (c - scrolledDown) * 9 + i;
-                this.gui.setItem(slot, new GuiItem(item));
+                this.gui.setItem(slot, new GuiItem(item, event -> clickInspection((Player) event.getWhoClicked(), node)));
             }
 
+            f++;
             i++;
-            if (i > 8) {
+            if (i > 7) {
                 c++;
                 i = 0;
             }
@@ -103,21 +109,28 @@ public class EngineGui<N extends TransactionNode> {
             }
         }
 
+        gui.update();
         hasDisplayedInitial = true;
     }
 
     private interface TransactionVisitor<T extends TransactionNode> {
 
-        void applyToItem(T node, ItemStack item);
+        void applyToItem(T node, ItemStack item, int index);
     }
 
     private static class SingleTransactionVisitor implements TransactionVisitor<SingleTransactionNode>  {
 
         @Override
-        public void applyToItem(SingleTransactionNode node, ItemStack item) {
+        public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
             SkullMeta meta = (SkullMeta) item.getItemMeta();
             meta.setOwner(node.toUserName());
-            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName());
+            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8)");
+
+            List<String> lore = new ArrayList<>();
+            lore.add("§fBeløb: §e" + node.amount() + " emeralder");
+            lore.add("§fTidspunkt: §e" + DATE_TIME_FORMATTER.format(node.time().toInstant()));
+            meta.setLore(lore);
+
             item.setItemMeta(meta);
         }
     }
@@ -125,7 +138,7 @@ public class EngineGui<N extends TransactionNode> {
     private static class GroupedTransactionVisitor implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
 
         @Override
-        public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item) {
+        public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item, int index) {
             SkullMeta meta = (SkullMeta) item.getItemMeta();
 
             switch (node.bound()) {
@@ -133,13 +146,13 @@ public class EngineGui<N extends TransactionNode> {
                     String toPlayer = node.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
 
                     meta.setOwner(toPlayer);
-                    meta.setDisplayName("§7Til §e" + toPlayer);
+                    meta.setDisplayName("§7Til §e" + toPlayer + " §(§e" + index + "§8)");
                     break;
                 case FROM:
                     String fromPlayer = node.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
 
                     meta.setOwner(fromPlayer);
-                    meta.setDisplayName("§7Fra §e" + fromPlayer);
+                    meta.setDisplayName("§7Fra §e" + fromPlayer + " §(§e" + index + "§8)");
                     break;
             }
 
@@ -153,6 +166,15 @@ public class EngineGui<N extends TransactionNode> {
 
     private void clickBack(Player player) {
         new EngineGui<>(this.context.previousContext().query(), this.context.previousContext().previousContext())
+                .open(player);
+    }
+
+    private void clickInspection(Player player, TransactionNode node) {
+        EngineQuery<N> newQuery = new EngineQuery<>(this.context.query());
+
+        player.closeInventory();
+        new EngineGui<>(
+                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.after(node.getMinTime()))), this.context)
                 .open(player);
     }
 

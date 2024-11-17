@@ -8,13 +8,13 @@ public interface QueryFilter<N extends Node> {
 
     boolean test(N input);
 
-    record FilterData<N extends Node>(FilterType<?, N> type, QueryFilter<N> filter) {
+    record FilterData<N extends Node>(FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
 
     }
 
     class FilterTypes {
 
-        public static FilterType<Date, SingleTransactionNode> TIME = new FilterType<>("time", SingleTransactionNode::time);
+        public static FilterType<Date, TransactionNode> TIME = new FilterType<>("time", TransactionNode::getMinTime);
         public static FilterType<Double, SingleTransactionNode> AMOUNT = new FilterType<>("amount", SingleTransactionNode::amount);
         public static FilterType<String, SingleTransactionNode> FROM_USER = new FilterType<>("from_user", SingleTransactionNode::fromUserName);
         public static FilterType<String, SingleTransactionNode> TO_USER = new FilterType<>("to_user", SingleTransactionNode::toUserName);
@@ -30,7 +30,7 @@ public interface QueryFilter<N extends Node> {
             this.converter = converter;
         }
 
-        QueryFilter<N> makeFilter(Predicate<T> filter) {
+        public QueryFilter<N> makeFilter(Predicate<T> filter) {
             return input -> filter.test(converter.apply(input));
         }
 

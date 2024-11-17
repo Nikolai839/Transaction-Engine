@@ -30,7 +30,7 @@ public class EngineRequest<N extends Node> {
             this.request = new EngineRequest<>(settings, executor, requester);
         }
 
-        public B addFilter(QueryFilter.FilterType<?, N> type, QueryFilter<N> filter) {
+        public B addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
             this.request.addFilter(type, filter);
             return (B) this;
         }
@@ -59,7 +59,7 @@ public class EngineRequest<N extends Node> {
         return this.filters.stream().filter(f -> f.type().equals(type)).collect(Collectors.toList());
     }
 
-    public void addFilter(QueryFilter.FilterType<?, N> type, QueryFilter<N> filter) {
+    public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
         this.filters.add(new QueryFilter.FilterData<>(type, filter));
     }
 

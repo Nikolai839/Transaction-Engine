@@ -37,10 +37,11 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
 
         this.requester = () ->
                 """
-                SELECT p1.id as toplayer, p2.id as fromplayer, l.amount, l.created
+                SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
                 FROM ems_log l
                 LEFT JOIN players p1 ON p1.id = l.toplayer
                 LEFT JOIN players p2 ON p2.id = l.fromplayer
+                WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL
                 ORDER BY created desc
                 """;
     }
@@ -52,7 +53,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     private void applySettings(DatabaseSettings settings) throws SQLException {
         this.source.setUser(settings.username());
         this.source.setPassword(settings.password());
-        this.source.setUser("jdbc:mariadb://" +  settings.host() + ":" + settings.port() + "/" + settings.database() + "?maxPoolSize=" + MAX_POOL_SIZE);
+        this.source.setUrl("jdbc:mariadb://" +  settings.host() + ":" + settings.port() + "/" + settings.database() + "?maxPoolSize=" + MAX_POOL_SIZE);
         this.hasAppliedSettings = true;
     }
 

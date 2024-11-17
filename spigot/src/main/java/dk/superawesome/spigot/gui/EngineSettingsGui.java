@@ -11,16 +11,21 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 
 public class EngineSettingsGui {
 
+    private static final ExecutorService THREAD_POOL = Executors.newFixedThreadPool(10);
     private final Gui gui;
 
     private SortingMethod sortingMethod = SortingMethod.BY_TIME;
@@ -42,7 +47,7 @@ public class EngineSettingsGui {
                 .disableAllInteractions()
                 .create();
 
-        for (int i : Arrays.asList(7, 8, 16, 17, 25, 26, 34, 43, 44, 45, 46, 47, 48, 49, 50, 51)) {
+        for (int i : Arrays.asList(7, 8, 16, 17, 25, 26, 34, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52)) {
             gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15)));
         }
         for (int i : Arrays.asList(9, 10, 11, 12, 13, 14, 15, 27, 28, 29, 30, 31, 32, 33, 37, 39)) {
@@ -108,6 +113,27 @@ public class EngineSettingsGui {
 
     private void openEngineGui(Player player) {
         try {
+
+            EngineLoadingGui gui = new EngineLoadingGui();
+            gui.open(player);
+            Consumer<BukkitRunnable> callback = task -> {
+                // make sure the player has not closed the inventory while loading
+                if (!gui.isTaskCancelled()) {
+                    player.closeInventory();
+                    task.runTask(TransactionEngine.instance);
+                }
+            };
+
+            THREAD_POOL.submit(() -> openEngineGuiAsync(player, callback));
+
+        } catch (Exception ex) {
+            Bukkit.getLogger().log(Level.SEVERE, "An error occurred when submitting task to thread pool", ex);
+            player.sendMessage("§cDer skete en fejl! Kontakt en udvikler!");
+        }
+    }
+
+    private void openEngineGuiAsync(Player player, Consumer<BukkitRunnable> callback) {
+        try {
             DatabaseController controller = TransactionEngine.instance.getDatabaseController();
             TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
 
@@ -149,16 +175,23 @@ public class EngineSettingsGui {
                 }
 
                 if (this.groupUserNamesMax == -1) {
-                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode>groupBy(func, Object::equals, nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
                 } else {
-                    finalQuery = query.transform(PostQueryTransformer.GroupBy.groupBy(func, Object::equals, PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax), nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
+                    finalQuery = query.transform(PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode>groupBy(func, Object::equals, PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax), nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
                 }
             } else {
                 finalQuery = query;
             }
 
-            new EngineGui<>(doSort(collection, finalQuery))
-                    .open(player);
+            Node.Collection finalCollection = collection;
+            callback.accept(new BukkitRunnable() {
+
+                @Override
+                public void run() {
+                    new EngineGui<>(doSort(finalCollection, finalQuery))
+                            .open(player);
+                }
+            });
 
         } catch (RequestException ex) {
             Bukkit.getLogger().log(Level.SEVERE, "Faild to query", ex);

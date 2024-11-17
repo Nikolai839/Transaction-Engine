@@ -1,7 +1,12 @@
-group = 'dk.superawesome'
-version = '1.0-SNAPSHOT'
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id 'java'
+}
 
 allprojects {
+    group = 'dk.superawesome'
+    version = '1.0'
+
     repositories {
         mavenCentral()
         maven {
@@ -11,6 +16,19 @@ allprojects {
     }
 }
 
+dependencies {
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
+    implementation("dev.triumphteam:triumph-gui:3.1.2")
+    implementation("de.rapha149.signgui:signgui:2.4.2")
+}
+
 subprojects {
     apply plugin: 'java'
+}
+
+shadowJar {
+    subprojects.each { subproject ->
+        from subproject.sourceSets.main.output
+    }
+    destinationDirectory = file("D:\\localhosts\\localhost 1.8.8 paper\\plugins")
 }

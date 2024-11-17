@@ -7,7 +7,14 @@ import java.util.function.Function;
 
 public interface TransactionNode extends Node {
 
+    Date getMinTime();
+
     record GroupedTransactionNode(List<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+
+        @Override
+        public Date getMinTime() {
+            return this.nodes.stream().map(SingleTransactionNode::time).min(Date::compareTo).orElseThrow();
+        }
 
         public enum Bound {
             FROM, TO

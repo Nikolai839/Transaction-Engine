@@ -6,6 +6,11 @@ import java.util.function.Function;
 
 public record SingleTransactionNode(Date time, double amount, String fromUserName, String toUserName) implements TransactionNode {
 
+    @Override
+    public Date getMinTime() {
+        return this.time;
+    }
+
     public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<SingleTransactionNode> {
 
         public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<SingleTransactionNode, SingleTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);

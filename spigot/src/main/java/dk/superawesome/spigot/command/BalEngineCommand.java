@@ -14,16 +14,16 @@ public class BalEngineCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission(PERMISSION)) {
             sender.sendMessage("§cDu har ikke adgang til dette!");
-            return false;
+            return true;
         }
 
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§cKun spillere kan gøre dette!");
-            return false;
+            return true;
         }
 
-        sender.sendMessage("§eÅbner transaktions-menuen op...");
+        player.closeInventory();
         new EngineSettingsGui().open(player);
-        return false;
+        return true;
     }
 }

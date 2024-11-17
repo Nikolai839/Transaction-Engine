@@ -1,7 +1,7 @@
 name: TransactionEngine
 author: Alek05
 version: '1.0'
-main: dk.superawesome.TransactionEngine
+main: dk.superawesome.spigot.TransactionEngine
 api-version: '1.13'
 
 commands:

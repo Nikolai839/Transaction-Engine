@@ -27,7 +27,7 @@ public final class TransactionEngine extends JavaPlugin {
                 config.getString("db.database")
         );
 
-        PluginCommand command = getCommand("balengine");
+        PluginCommand command = getCommand("transaktioner");
         if (command != null) {
             command.setExecutor(new BalEngineCommand());
         }
