@@ -1,13 +1,13 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.db.Settings;
-import dk.superawesome.exceptions.RequestException;
+import dk.superawesome.core.db.Settings;
+import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class TransactionNodeFactory implements NodeFactory<SimpleTransactionNode> {
+public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode> {
 
     public static final String TIME = "time";
     public static final String AMOUNT = "amount";
@@ -27,9 +27,9 @@ public class TransactionNodeFactory implements NodeFactory<SimpleTransactionNode
     }
 
     @Override
-    public SimpleTransactionNode createNode(ResultSet set) throws RequestException {
+    public SingleTransactionNode createNode(ResultSet set) throws RequestException {
         try {
-            return new SimpleTransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
+            return new SingleTransactionNode(new Date(set.getDate(timeKey).getTime()), set.getDouble(amountKey), set.getString(fromUserKey), set.getString(toUserKey));
         } catch (SQLException ex) {
             throw new RequestException(ex);
         }

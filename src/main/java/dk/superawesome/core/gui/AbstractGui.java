@@ -1,4 +1,4 @@
-package dk.superawesome.gui;
+package dk.superawesome.core.gui;
 
 import org.bukkit.entity.Player;
 

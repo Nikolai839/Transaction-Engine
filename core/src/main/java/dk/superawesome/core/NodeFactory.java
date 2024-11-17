@@ -1,6 +1,6 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.exceptions.RequestException;
+import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.ResultSet;
 

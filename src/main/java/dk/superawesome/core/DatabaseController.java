@@ -1,10 +1,10 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.db.DatabaseExecutor;
-import dk.superawesome.db.DatabaseSettings;
-import dk.superawesome.db.Requester;
-import dk.superawesome.db.Settings;
-import dk.superawesome.exceptions.RequestException;
+import dk.superawesome.core.db.DatabaseExecutor;
+import dk.superawesome.core.db.DatabaseSettings;
+import dk.superawesome.core.db.Requester;
+import dk.superawesome.core.db.Settings;
+import dk.superawesome.core.exceptions.RequestException;
 import org.bukkit.Bukkit;
 import org.mariadb.jdbc.MariaDbPoolDataSource;
 
@@ -15,7 +15,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.logging.Level;
 
-public class DatabaseController implements DatabaseExecutor<SimpleTransactionNode> {
+public class DatabaseController implements DatabaseExecutor<SingleTransactionNode> {
 
     private static final int MAX_POOL_SIZE = 10;
 
@@ -40,7 +40,7 @@ public class DatabaseController implements DatabaseExecutor<SimpleTransactionNod
     }
 
     @Override
-    public EngineQuery<SimpleTransactionNode> execute(DatabaseSettings settings, Requester requester) throws RequestException, SQLException {
+    public EngineQuery<SingleTransactionNode> execute(DatabaseSettings settings, Requester requester) throws RequestException, SQLException {
         if (!this.hasAppliedSettings) {
             try {
                 applySettings(settings);

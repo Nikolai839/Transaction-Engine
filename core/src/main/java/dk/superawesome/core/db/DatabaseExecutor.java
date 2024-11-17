@@ -1,8 +1,8 @@
-package dk.superawesome.db;
+package dk.superawesome.core.db;
 
-import dk.superawesome.EngineQuery;
-import dk.superawesome.Node;
-import dk.superawesome.exceptions.RequestException;
+import dk.superawesome.core.EngineQuery;
+import dk.superawesome.core.Node;
+import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.SQLException;
 

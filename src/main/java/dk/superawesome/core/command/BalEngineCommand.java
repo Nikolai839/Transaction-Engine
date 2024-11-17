@@ -1,6 +1,6 @@
-package dk.superawesome.command;
+package dk.superawesome.core.command;
 
-import dk.superawesome.gui.ESettingsGui;
+import dk.superawesome.core.gui.ESettingsGui;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

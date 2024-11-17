@@ -1,4 +1,4 @@
-package dk.superawesome.db;
+package dk.superawesome.core.db;
 
 public interface Requester {
 

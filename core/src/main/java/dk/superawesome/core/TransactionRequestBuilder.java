@@ -1,19 +1,19 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.db.DatabaseExecutor;
-import dk.superawesome.db.DatabaseSettings;
-import dk.superawesome.db.Requester;
+import dk.superawesome.core.db.DatabaseExecutor;
+import dk.superawesome.core.db.DatabaseSettings;
+import dk.superawesome.core.db.Requester;
 
 import java.util.Arrays;
 import java.util.Date;
 
-public class TransactionRequestBuilder extends EngineRequest.Builder<SimpleTransactionNode, TransactionRequestBuilder> {
+public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTransactionNode, TransactionRequestBuilder> {
 
-    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<SimpleTransactionNode> executor, Requester requester) {
+    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
         return new TransactionRequestBuilder(settings, executor, requester);
     }
 
-    public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<SimpleTransactionNode> executor, Requester requester) {
+    public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
         super(settings, executor, requester);
     }
 
@@ -46,7 +46,7 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SimpleTrans
         return range(0, to);
     }
 
-    private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, SimpleTransactionNode> filter, String... names) {
+    private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, SingleTransactionNode> filter, String... names) {
         addFilter(filter, filter.makeFilter(n -> Arrays.asList(names).contains(n)));
         return this;
     }

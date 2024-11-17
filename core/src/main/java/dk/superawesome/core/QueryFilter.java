@@ -1,4 +1,4 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
 import java.util.Date;
 import java.util.function.Function;
@@ -14,10 +14,10 @@ public interface QueryFilter<N extends Node> {
 
     class FilterTypes {
 
-        public static FilterType<Date, SimpleTransactionNode> TIME = new FilterType<>("time", SimpleTransactionNode::time);
-        public static FilterType<Double, SimpleTransactionNode> AMOUNT = new FilterType<>("amount", SimpleTransactionNode::amount);
-        public static FilterType<String, SimpleTransactionNode> FROM_USER = new FilterType<>("from_user", SimpleTransactionNode::fromUserName);
-        public static FilterType<String, SimpleTransactionNode> TO_USER = new FilterType<>("to_user", SimpleTransactionNode::toUserName);
+        public static FilterType<Date, SingleTransactionNode> TIME = new FilterType<>("time", SingleTransactionNode::time);
+        public static FilterType<Double, SingleTransactionNode> AMOUNT = new FilterType<>("amount", SingleTransactionNode::amount);
+        public static FilterType<String, SingleTransactionNode> FROM_USER = new FilterType<>("from_user", SingleTransactionNode::fromUserName);
+        public static FilterType<String, SingleTransactionNode> TO_USER = new FilterType<>("to_user", SingleTransactionNode::toUserName);
     }
 
     class FilterType<T, N extends Node> implements Identifiable {

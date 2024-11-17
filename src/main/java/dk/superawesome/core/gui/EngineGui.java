@@ -1,7 +1,7 @@
-package dk.superawesome.gui;
+package dk.superawesome.core.gui;
 
-import dk.superawesome.EngineQuery;
-import dk.superawesome.Node;
+import dk.superawesome.core.EngineQuery;
+import dk.superawesome.core.Node;
 import org.bukkit.entity.Player;
 
 public class EngineGui {

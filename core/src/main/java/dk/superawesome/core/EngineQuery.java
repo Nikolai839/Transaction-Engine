@@ -1,6 +1,6 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.exceptions.RequestException;
+import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,7 +24,7 @@ public class EngineQuery<N extends Node> {
         }
     }
 
-    private List<N> nodes = new ArrayList<>();
+    private final List<N> nodes = new ArrayList<>();
 
     private EngineQuery(List<N> nodes) {
         this.nodes.addAll(nodes);
@@ -37,7 +37,7 @@ public class EngineQuery<N extends Node> {
         return this;
     }
 
-    public <TN extends Node> EngineQuery<TN> transform(PostQueryTransformer<N, List<TN>> transformer) {
+    public <TN extends Node> EngineQuery<TN> transform(PostQueryTransformer<N, TN> transformer) {
         return new EngineQuery<>(transformer.transform(this.nodes));
     }
 

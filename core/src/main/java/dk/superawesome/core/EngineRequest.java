@@ -1,9 +1,9 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.db.DatabaseExecutor;
-import dk.superawesome.db.DatabaseSettings;
-import dk.superawesome.db.Requester;
-import dk.superawesome.exceptions.RequestSetupException;
+import dk.superawesome.core.db.DatabaseExecutor;
+import dk.superawesome.core.db.DatabaseSettings;
+import dk.superawesome.core.db.Requester;
+import dk.superawesome.core.exceptions.RequestSetupException;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;

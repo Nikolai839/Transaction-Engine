@@ -1,4 +1,4 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
 public interface Identifiable {
 

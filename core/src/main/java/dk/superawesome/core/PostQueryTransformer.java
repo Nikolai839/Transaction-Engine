@@ -1,4 +1,4 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -7,16 +7,37 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
-public interface PostQueryTransformer<N, T> {
+public interface PostQueryTransformer<N extends Node, T extends Node> {
 
-    T transform(List<N> nodes);
+    static <N extends Node> PostQueryTransformer<N, N> NO_ACTION() {
+        return nodes -> nodes;
+    }
 
-    class SortBy<N extends Node> implements PostQueryTransformer<N, List<N>> {
+    List<T> transform(List<N> nodes);
+
+    class SortBy<N extends Node> implements PostQueryTransformer<N, N> {
+
+        public static <N extends Node> SortVisitor<N> getVisitor(Node.Collection collection) {
+            switch (collection) {
+                case SINGLE:
+                    return (SortVisitor<N>) new SingleTransactionNode.Visitor();
+                case GROUPED:
+                    return (SortVisitor<N>) new TransactionNode.GroupedTransactionNode.Visitor();
+            }
+
+            throw new IllegalArgumentException();
+        }
 
         public static <N extends Node, T> SortBy<N> sortBy(Function<N, T> func, Comparator<T> comparator) {
             return new SortBy<>((o1, o2) -> comparator.compare(func.apply(o1), func.apply(o2)));
+        }
+
+        public static <GN extends GroupedNode<N>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, List<N>> nodes, Function<N, T> func, Comparator<T> comparator) {
+            return new SortBy<>((o1, o2) -> comparator.compare(
+                    func.apply(nodes.apply(o1).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null)),
+                    func.apply(nodes.apply(o2).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null))
+            ));
         }
 
         private final Comparator<N> comparator;
@@ -30,9 +51,14 @@ public interface PostQueryTransformer<N, T> {
             nodes.sort(this.comparator);
             return nodes;
         }
+
+        public interface SortVisitor<N extends Node> {
+
+            SortBy<N> sortByTime();
+        }
     }
 
-    class GroupBy<N extends Node, GN extends GroupedNode> implements PostQueryTransformer<N, List<GN>> {
+    class GroupBy<N extends Node, GN extends GroupedNode<N>> implements PostQueryTransformer<N, GN> {
 
         public interface GroupOperator<N extends Node> {
 
@@ -55,24 +81,24 @@ public interface PostQueryTransformer<N, T> {
             boolean checkGroup(List<N> nodes, N node);
         }
 
-        public interface GroupCollector<N extends Node, GN extends GroupedNode> {
+        public interface GroupCollector<N extends Node, GN extends GroupedNode<N>> {
 
             GN collect(List<N> nodes);
         }
 
-        public static <N extends Node, GN extends GroupedNode> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
             return groupBy(func, func, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
             return groupBy(func, func, groupBy, operator, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
             return groupBy(func1, func2, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
             return new GroupBy<>((n1, n2) -> groupBy.test(func1.apply(n1), func2.apply(n2)), operator, collector);
         }
 

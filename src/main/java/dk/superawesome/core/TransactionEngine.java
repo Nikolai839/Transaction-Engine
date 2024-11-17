@@ -1,7 +1,7 @@
-package dk.superawesome;
+package dk.superawesome.core;
 
-import dk.superawesome.command.BalEngineCommand;
-import dk.superawesome.db.DatabaseSettings;
+import dk.superawesome.core.command.BalEngineCommand;
+import dk.superawesome.core.db.DatabaseSettings;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;

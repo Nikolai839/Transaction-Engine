@@ -1,4 +1,4 @@
-package dk.superawesome.exceptions;
+package dk.superawesome.core.exceptions;
 
 public class RequestSetupException extends RequestException {
 
