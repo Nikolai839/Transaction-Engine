@@ -4,6 +4,7 @@ import dk.superawesome.core.db.DatabaseExecutor;
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;
 
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -17,19 +18,19 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTrans
         super(settings, executor, requester);
     }
 
-    public TransactionRequestBuilder from(Date date) {
-        addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.after(date)));
+    public TransactionRequestBuilder from(ZonedDateTime date) {
+        addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(date)));
         return this;
     }
 
-    public TransactionRequestBuilder to(Date date) {
-        addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.before(date)));
+    public TransactionRequestBuilder to(ZonedDateTime date) {
+        addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isBefore(date)));
         return this;
     }
 
-    public TransactionRequestBuilder range(Date from, Date to) {
-        from(to.getTime() > from.getTime() ? from : to);
-        to(to.getTime() > from.getTime() ? to : from);
+    public TransactionRequestBuilder range(ZonedDateTime from, ZonedDateTime to) {
+        from(to.isAfter(from) ? from : to);
+        to(to.isAfter(from) ? to : from);
         return this;
     }
 

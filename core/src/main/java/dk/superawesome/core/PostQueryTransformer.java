@@ -1,12 +1,13 @@
 package dk.superawesome.core;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
+import java.time.ZonedDateTime;
+import java.time.chrono.ChronoZonedDateTime;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
+import java.util.stream.Collector;
 
 public interface PostQueryTransformer<N extends Node, T extends Node> {
 
@@ -16,17 +17,21 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
     List<T> transform(List<N> nodes);
 
+    static <N extends Node> PostQueryTransformer<N, N> reversed() {
+        return nodes -> {
+            Collections.reverse(nodes);
+            return nodes;
+        };
+    }
+
     class SortBy<N extends Node> implements PostQueryTransformer<N, N> {
 
         public static <N extends Node> SortVisitor<N> getVisitor(Node.Collection collection) {
-            switch (collection) {
-                case SINGLE:
-                    return (SortVisitor<N>) new SingleTransactionNode.Visitor();
-                case GROUPED:
-                    return (SortVisitor<N>) new TransactionNode.GroupedTransactionNode.Visitor();
-            }
+            return switch (collection) {
+                case SINGLE -> (SortVisitor<N>) new SingleTransactionNode.Visitor();
+                case GROUPED -> (SortVisitor<N>) new TransactionNode.GroupedTransactionNode.Visitor();
+            };
 
-            throw new IllegalArgumentException();
         }
 
         public static <N extends Node, T> SortBy<N> sortBy(Function<N, T> func, Comparator<T> comparator) {
@@ -37,6 +42,13 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             return new SortBy<>((o1, o2) -> comparator.compare(
                     func.apply(nodes.apply(o1).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null)),
                     func.apply(nodes.apply(o2).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null))
+            ));
+        }
+
+        public static <GN extends GroupedNode<N>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, List<N>> nodes, Function<N, T> func, BinaryOperator<T> collector, Comparator<T> comparator) {
+            return new SortBy<>((o1, o2) -> comparator.compare(
+                    nodes.apply(o1).stream().map(func).reduce(collector).orElse(null),
+                    nodes.apply(o2).stream().map(func).reduce(collector).orElse(null)
             ));
         }
 
@@ -55,6 +67,8 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
         public interface SortVisitor<N extends Node> {
 
             SortBy<N> sortByTime();
+
+            SortBy<N> sortByAmount();
         }
     }
 
@@ -62,17 +76,21 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
         public interface GroupOperator<N extends Node> {
 
+            static <N extends Node> GroupOperator<N> mix(List<GroupOperator<N>> operators) {
+                return (nodes, node) -> operators.stream().allMatch(o -> o.checkGroup(nodes, node));
+            }
+
             static <N extends Node> GroupOperator<N> max(int limit) {
                 return (l, __) -> l.size() <= limit;
             }
 
-            static <N extends Node> GroupOperator<N> maxBetween(Function<N, Date> timeSupplier,  int amount, TimeUnit unit) {
+            static <N extends Node> GroupOperator<N> maxBetween(Function<N, ZonedDateTime> timeSupplier, int amount, TimeUnit unit) {
                 return (l, n) -> {
                     List<N> testGroup = new ArrayList<>(l);
                     testGroup.add(n);
 
-                    List<Date> postTest = testGroup.stream().map(timeSupplier).sorted(Date::compareTo).toList();
-                    long diff = postTest.get(postTest.size() - 1).getTime() - postTest.get(0).getTime();
+                    List<ZonedDateTime> postTest = testGroup.stream().map(timeSupplier).sorted(ChronoZonedDateTime::compareTo).toList();
+                    long diff = postTest.get(postTest.size() - 1).toInstant().toEpochMilli() - postTest.get(0).toInstant().toEpochMilli();
 
                     return diff <= unit.toMillis(amount);
                 };

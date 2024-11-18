@@ -1,13 +1,14 @@
 package dk.superawesome.core;
 
-import java.util.Date;
+import java.time.ZonedDateTime;
+import java.time.chrono.ChronoZonedDateTime;
 import java.util.EnumMap;
 import java.util.function.Function;
 
-public record SingleTransactionNode(Date time, double amount, String fromUserName, String toUserName) implements TransactionNode {
+public record SingleTransactionNode(ZonedDateTime time, double amount, String fromUserName, String toUserName) implements TransactionNode {
 
     @Override
-    public Date getMinTime() {
+    public ZonedDateTime getMinTime() {
         return this.time;
     }
 
@@ -16,11 +17,17 @@ public record SingleTransactionNode(Date time, double amount, String fromUserNam
         public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<SingleTransactionNode, SingleTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);
         static {
             SORTINGS.put(SortingMethod.BY_TIME, Visitor::sortByTime);
+            SORTINGS.put(SortingMethod.BY_AMOUNT, Visitor::sortByAmount);
         }
 
         @Override
         public PostQueryTransformer.SortBy<SingleTransactionNode> sortByTime() {
-            return PostQueryTransformer.SortBy.sortBy(SingleTransactionNode::time, Date::compareTo);
+            return PostQueryTransformer.SortBy.sortBy(SingleTransactionNode::time, ChronoZonedDateTime::compareTo);
+        }
+
+        @Override
+        public PostQueryTransformer.SortBy<SingleTransactionNode> sortByAmount() {
+            return PostQueryTransformer.SortBy.sortBy(SingleTransactionNode::amount, Double::compareTo);
         }
     }
 }

@@ -1,5 +1,6 @@
 package dk.superawesome.spigot.gui;
 
+import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
@@ -13,15 +14,22 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.material.MaterialData;
 
 import java.sql.Date;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public class EngineGui<N extends TransactionNode> {
 
+    private static final DecimalFormat AMOUNT_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.ENGLISH));
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
     private final Gui gui;
     private final QueryContext<N> context;
+    private final EngineSettingsGui settings;
     private TransactionVisitor<N> visitor;
 
     private boolean hasDisplayedInitial;
@@ -31,12 +39,13 @@ public class EngineGui<N extends TransactionNode> {
 
     }
 
-    public EngineGui(EngineQuery<N> query) {
-        this(query, null);
+    public EngineGui(EngineQuery<N> query, EngineSettingsGui settings) {
+        this(query, null, settings);
     }
 
-    private EngineGui(EngineQuery<N> query, QueryContext<N> previousContext) {
+    private EngineGui(EngineQuery<N> query, QueryContext<N> previousContext, EngineSettingsGui settings) {
         this.context = new QueryContext<>(previousContext, query);
+        this.settings = settings;
         this.gui = Gui.gui()
                 .title(Component.text("Transaktioner (" + query.size() + ")"))
                 .rows(6)
@@ -48,12 +57,25 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         if (previousContext != null) {
-            this.gui.setItem(45, new GuiItem(Material.ARROW, event -> clickBack((Player) event.getWhoClicked())));
+            this.gui.setItem(45, new GuiItem(
+                    ItemBuilder.from(Material.ARROW)
+                            .name(Component.text("§6Gå tilbage"))
+                            .build(), event -> clickBack((Player) event.getWhoClicked())));
         }
+        this.gui.setItem(44, new GuiItem(
+                ItemBuilder.from(Material.ARROW)
+                        .name(Component.text("§6Rul opad"))
+                        .build(), __ -> clickUp()));
 
-        this.gui.setItem(44, new GuiItem(Material.ARROW, __ -> clickUp()));
-        this.gui.setItem(53, new GuiItem(Material.ARROW, __ -> clickDown()));
-        this.gui.setItem(46, new GuiItem(new ItemStack(Material.WOOL, 1, (short) 14), event -> clickNewSettings((Player) event.getWhoClicked())));
+        this.gui.setItem(53, new GuiItem(
+                ItemBuilder.from(Material.ARROW)
+                        .name(Component.text("§6Rul nedad"))
+                        .build(), __ -> clickDown()));
+
+        this.gui.setItem(46, new GuiItem(
+                ItemBuilder.from(new ItemStack(Material.WOOL, 1, (short) 14))
+                        .name(Component.text("§cTilbage til indstillinger"))
+                        .build(), event -> clickNewSettings((Player) event.getWhoClicked())));
 
         displayNodes();
     }
@@ -90,8 +112,7 @@ public class EngineGui<N extends TransactionNode> {
             if (c >= scrolledDown) {
                 TransactionVisitor<N> visitor = getVisitor(node);
 
-                ItemStack item = new ItemStack(Material.SKULL_ITEM);
-                item.setData(new MaterialData(SkullType.PLAYER.ordinal()));
+                ItemStack item = new ItemStack(Material.SKULL_ITEM, 1, (short) 0, (byte) SkullType.PLAYER.ordinal());
                 visitor.applyToItem(node, item, f);
 
                 int slot = (c - scrolledDown) * 9 + i;
@@ -128,8 +149,8 @@ public class EngineGui<N extends TransactionNode> {
             meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8)");
 
             List<String> lore = new ArrayList<>();
-            lore.add("§fBeløb: §e" + node.amount() + " emeralder");
-            lore.add("§fTidspunkt: §e" + node.time());
+            lore.add("§7Beløb: " + AMOUNT_FORMATTER.format(node.amount()) + " emeralder");
+            lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
             meta.setLore(lore);
 
             item.setItemMeta(meta);
@@ -162,11 +183,11 @@ public class EngineGui<N extends TransactionNode> {
     }
 
     private void clickNewSettings(Player player) {
-        new EngineSettingsGui().open(player);
+        this.settings.open(player);
     }
 
     private void clickBack(Player player) {
-        new EngineGui<>(this.context.previousContext().query(), this.context.previousContext().previousContext())
+        new EngineGui<>(this.context.previousContext().query(), this.context.previousContext().previousContext(), this.settings)
                 .open(player);
     }
 
@@ -175,9 +196,9 @@ public class EngineGui<N extends TransactionNode> {
 
         player.closeInventory();
         new EngineGui<>(
-                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.after(node.getMinTime())))
+                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.getMinTime())))
                 // TODO
-                        .filter((QueryFilter<? super N>) QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(((SingleTransactionNode)node).toUserName()))), this.context)
+                        .filter((QueryFilter<? super N>) QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(((SingleTransactionNode)node).toUserName()))), this.context, this.settings)
                 .open(player);
     }
 

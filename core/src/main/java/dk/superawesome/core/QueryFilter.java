@@ -1,8 +1,10 @@
 package dk.superawesome.core;
 
+import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.zip.ZipEntry;
 
 public interface QueryFilter<N extends Node> {
 
@@ -14,7 +16,7 @@ public interface QueryFilter<N extends Node> {
 
     class FilterTypes {
 
-        public static FilterType<Date, TransactionNode> TIME = new FilterType<>("time", TransactionNode::getMinTime);
+        public static FilterType<ZonedDateTime, TransactionNode> TIME = new FilterType<>("time", TransactionNode::getMinTime);
         public static FilterType<Double, SingleTransactionNode> AMOUNT = new FilterType<>("amount", SingleTransactionNode::amount);
         public static FilterType<String, SingleTransactionNode> FROM_USER = new FilterType<>("from_user", SingleTransactionNode::fromUserName);
         public static FilterType<String, SingleTransactionNode> TO_USER = new FilterType<>("to_user", SingleTransactionNode::toUserName);
