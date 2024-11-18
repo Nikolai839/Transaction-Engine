@@ -15,10 +15,10 @@ public class EngineRequest<N extends Node> {
     public static class Builder<N extends Node, B extends Builder<N, B>> {
 
         @SuppressWarnings("unchecked")
-        public static <N extends Node, B extends Builder<N, B>> B makeRequest(Class<? extends Builder<N, B>> clazz, DatabaseSettings settings, DatabaseExecutor executor, Requester requester) throws RequestSetupException {
+        public static <N extends Node, B extends Builder<N, B>> B makeRequest(Class<? extends Builder<N, B>> clazz, EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor executor, Requester requester) throws RequestSetupException {
             try {
-                return (B) clazz.getDeclaredConstructor(DatabaseSettings.class, DatabaseExecutor.class, Requester.class)
-                        .newInstance(settings, executor, requester);
+                return (B) clazz.getDeclaredConstructor(EngineCache.class, DatabaseSettings.class, DatabaseExecutor.class, Requester.class)
+                        .newInstance(cache, settings, executor, requester);
             } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
                 throw new RequestSetupException();
             }
@@ -26,8 +26,8 @@ public class EngineRequest<N extends Node> {
 
         protected final EngineRequest<N> request;
 
-        public Builder(DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
-            this.request = new EngineRequest<>(settings, executor, requester);
+        public Builder(EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
+            this.request = new EngineRequest<>(cache, settings, executor, requester);
         }
 
         public B addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
@@ -41,11 +41,13 @@ public class EngineRequest<N extends Node> {
     }
 
     private final List<QueryFilter.FilterData<N>> filters = new ArrayList<>();
+    private final EngineCache<N> cache;
     private final DatabaseSettings settings;
     private final DatabaseExecutor<N> executor;
     private final Requester requester;
 
-    public EngineRequest(DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
+    public EngineRequest(EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
+        this.cache = cache;
         this.settings = settings;
         this.executor = executor;
         this.requester = requester;
@@ -69,6 +71,10 @@ public class EngineRequest<N extends Node> {
 
     public List<QueryFilter.FilterData<N>> getFilters() {
         return this.filters;
+    }
+
+    public EngineCache<N> getCache() {
+        return this.cache;
     }
 
     public DatabaseSettings getSettings() {

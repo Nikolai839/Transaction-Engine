@@ -7,6 +7,7 @@ import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
 import dk.superawesome.core.exceptions.RequestException;
+import dk.superawesome.spigot.Cache;
 import dk.superawesome.spigot.DatabaseController;
 import dk.superawesome.spigot.TransactionEngine;
 import net.kyori.adventure.text.Component;
@@ -26,13 +27,17 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public class EngineSettingsGui {
 
+    private static final Cache CACHE = new Cache();
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final ZoneId ZONE_ID = ZoneId.of("Europe/Copenhagen");
     private static final Pattern USERNAME = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
@@ -618,7 +623,7 @@ public class EngineSettingsGui {
     private <T extends TransactionNode> void openEngineGuiAsync(Player player, Consumer<BukkitRunnable> callback) {
         try {
             DatabaseController controller = TransactionEngine.instance.getDatabaseController();
-            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
+            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
 
             builder.to(toUserNames.toArray(String[]::new));
             builder.from(fromUserNames.toArray(String[]::new));
@@ -635,7 +640,7 @@ public class EngineSettingsGui {
                 builder.to(this.timeTo);
             }
 
-            EngineQuery<SingleTransactionNode> query = Engine.query(builder.build());
+            EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
             if (this.traceModeEnabled) {
                 // TODO
             }

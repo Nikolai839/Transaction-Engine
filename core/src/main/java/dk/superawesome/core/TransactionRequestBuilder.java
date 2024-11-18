@@ -10,12 +10,12 @@ import java.util.Date;
 
 public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTransactionNode, TransactionRequestBuilder> {
 
-    public static TransactionRequestBuilder makeRequest(DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
-        return new TransactionRequestBuilder(settings, executor, requester);
+    public static TransactionRequestBuilder makeRequest(EngineCache<SingleTransactionNode> cache, DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
+        return new TransactionRequestBuilder(cache, settings, executor, requester);
     }
 
-    public TransactionRequestBuilder(DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
-        super(settings, executor, requester);
+    public TransactionRequestBuilder(EngineCache<SingleTransactionNode> cache, DatabaseSettings settings, DatabaseExecutor<SingleTransactionNode> executor, Requester requester) {
+        super(cache, settings, executor, requester);
     }
 
     public TransactionRequestBuilder from(ZonedDateTime date) {

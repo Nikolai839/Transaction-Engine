@@ -1,5 +1,6 @@
 package dk.superawesome.spigot;
 
+import dk.superawesome.core.EngineCache;
 import dk.superawesome.core.EngineQuery;
 import dk.superawesome.core.SingleTransactionNode;
 import dk.superawesome.core.TransactionNodeFactory;
@@ -15,6 +16,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.logging.Level;
 
@@ -35,14 +37,30 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             put(TransactionNodeFactory.TO_USER, "toplayer");
         }}));
 
-        this.requester = () ->
-                """
-                SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
-                FROM ems_log l
-                LEFT JOIN players p1 ON p1.id = l.toplayer
-                LEFT JOIN players p2 ON p2.id = l.fromplayer
-                WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1
-                """;
+        this.requester = new Requester() {
+            @Override
+            public String toQuery() {
+                return """
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
+                        FROM ems_log l
+                        LEFT JOIN players p1 ON p1.id = l.toplayer
+                        LEFT JOIN players p2 ON p2.id = l.fromplayer
+                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1
+                       """;
+            }
+
+            @Override
+            public String toQueryAfter(LocalDateTime after) {
+                String time = after.getYear() + "-" + after.getMonthValue() + "-" + after.getDayOfMonth() + " " + after.getHour() + ":" + after.getMinute() + ":" + after.getSecond();
+                return String.format("""
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
+                        FROM ems_log l
+                        LEFT JOIN players p1 ON p1.id = l.toplayer
+                        LEFT JOIN players p2 ON p2.id = l.fromplayer
+                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1 AND l.created > CAST('%s' AS DATETIME) - INTERVAL 1 MINUTE
+                        """, time);
+            }
+        };
     }
 
     public Requester getRequester() {
@@ -57,7 +75,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     }
 
     @Override
-    public EngineQuery<SingleTransactionNode> execute(DatabaseSettings settings, Requester requester) throws RequestException, SQLException {
+    public EngineQuery<SingleTransactionNode> execute(EngineCache<SingleTransactionNode> cache, DatabaseSettings settings, String query) throws RequestException, SQLException {
         if (!this.hasAppliedSettings) {
             try {
                 applySettings(settings);
@@ -67,8 +85,8 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             }
         }
 
-        try (ResultSet set = runQuery(requester.toQuery())) {
-            return EngineQuery.create(set, this.nodeFactory);
+        try (ResultSet set = runQuery(query)) {
+            return EngineQuery.create(set, this.nodeFactory, cache);
         }
     }
 

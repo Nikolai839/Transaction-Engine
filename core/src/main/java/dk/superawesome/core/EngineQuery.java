@@ -10,13 +10,17 @@ import java.util.function.Predicate;
 
 public class EngineQuery<N extends Node> {
 
-    public static <N extends Node> EngineQuery<N> create(ResultSet set, NodeFactory<N> factory) throws RequestException {
+    public static <N extends Node> EngineQuery<N> create(ResultSet set, NodeFactory<N> factory, EngineCache<N> cache) throws RequestException {
         try {
             EngineQuery<N> query = new EngineQuery<>();
 
             while (set.next()) {
-                query.nodes.add(factory.createNode(set));
+                N node = factory.createNode(set);
+                query.nodes.add(node);
             }
+
+            cache.getCachedNodes().addAll(query.nodes());
+            cache.markCached();
 
             return query;
         } catch (SQLException ex) {
@@ -27,7 +31,7 @@ public class EngineQuery<N extends Node> {
     private final List<N> initialNodes = new ArrayList<>();
     private final List<N> nodes = new ArrayList<>();
 
-    private EngineQuery(List<N> nodes) {
+    public EngineQuery(List<N> nodes) {
         this.nodes.addAll(nodes);
         this.initialNodes.addAll(nodes);
     }

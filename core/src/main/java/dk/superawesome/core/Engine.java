@@ -2,11 +2,31 @@ package dk.superawesome.core;
 
 import dk.superawesome.core.exceptions.RequestException;
 
+import java.util.ArrayList;
+
 public class Engine {
+
+    public static <N extends Node> EngineQuery<N> queryFromCache(EngineRequest<N> request) throws RequestException {
+        try {
+            if (request.getCache().isCacheEmpty()) {
+                return query(request);
+            }
+
+            EngineQuery<N> query = new EngineQuery<>(new ArrayList<>(request.getCache().getCachedNodes()));
+            query.nodes().addAll(
+                    request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().toQueryAfter(request.getCache().latestCacheTime()))
+                            .nodes()
+            );
+
+            return query;
+        } catch (Exception ex) {
+            throw new RequestException(ex);
+        }
+    }
 
     public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request) throws RequestException {
         try {
-            return request.getExecutor().execute(request.getSettings(), request.getRequester())
+            return request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().toQuery())
                     .filter(request);
         } catch (Exception ex) {
             throw new RequestException(ex);
