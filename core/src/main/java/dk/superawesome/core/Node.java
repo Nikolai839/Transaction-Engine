@@ -14,6 +14,14 @@ public interface Node {
     enum Collection {
         SINGLE(SingleNodeComparator::new), GROUPED(GroupedNodeComparator::new);
 
+        public static Collection from(Node node) {
+            if (node.isGrouped()) {
+                return GROUPED;
+            } else {
+                return SINGLE;
+            }
+        }
+
         private final Supplier<NodeComparator<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier;
 
         Collection(Supplier<NodeComparator<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier) {

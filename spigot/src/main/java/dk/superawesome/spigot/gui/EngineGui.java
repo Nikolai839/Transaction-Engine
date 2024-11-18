@@ -28,14 +28,14 @@ public class EngineGui<N extends TransactionNode> {
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private final Gui gui;
-    private final QueryContext<N> context;
+    private final QueryContext<N, ? extends TransactionNode> context;
     private final EngineSettingsGui settings;
     private TransactionVisitor<N> visitor;
 
     private boolean hasDisplayedInitial;
     private int scrolledDown;
 
-    private record QueryContext<CN extends TransactionNode>(QueryContext<CN> previousContext, EngineQuery<CN> query) {
+    private record QueryContext<CN extends TransactionNode, FN extends TransactionNode>(QueryContext<FN, ? extends TransactionNode> previousContext, EngineQuery<CN> query) {
 
     }
 
@@ -43,7 +43,7 @@ public class EngineGui<N extends TransactionNode> {
         this(query, null, settings);
     }
 
-    private EngineGui(EngineQuery<N> query, QueryContext<N> previousContext, EngineSettingsGui settings) {
+    private EngineGui(EngineQuery<N> query, QueryContext<N, ?> previousContext, EngineSettingsGui settings) {
         this.context = new QueryContext<>(previousContext, query);
         this.settings = settings;
         this.gui = Gui.gui()
@@ -91,9 +91,9 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         if (node.isGrouped()) {
-            return this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor();
+            return this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
         } else {
-            return this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor();
+            return this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings);
         }
     }
 
@@ -116,7 +116,7 @@ public class EngineGui<N extends TransactionNode> {
                 visitor.applyToItem(node, item, f);
 
                 int slot = (c - scrolledDown) * 9 + i;
-                this.gui.setItem(slot, new GuiItem(item, event -> clickInspection((Player) event.getWhoClicked(), node)));
+                this.gui.setItem(slot, new GuiItem(item, event -> this.visitor.clickInspection((Player) event.getWhoClicked(), node)));
             }
 
             f++;
@@ -138,9 +138,11 @@ public class EngineGui<N extends TransactionNode> {
     private interface TransactionVisitor<T extends TransactionNode> {
 
         void applyToItem(T node, ItemStack item, int index);
+
+        void clickInspection(Player player, T node);
     }
 
-    private static class SingleTransactionVisitor implements TransactionVisitor<SingleTransactionNode>  {
+    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode>  {
 
         @Override
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
@@ -155,9 +157,22 @@ public class EngineGui<N extends TransactionNode> {
 
             item.setItemMeta(meta);
         }
+
+        @Override
+        public void clickInspection(Player player, SingleTransactionNode node) {
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false);
+
+            player.closeInventory();
+            new EngineGui<>(
+                    newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.getMinTime())))
+                            .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(node.toUserName()))),
+                    this.context,
+                    this.settings
+            ).open(player);
+        }
     }
 
-    private static class GroupedTransactionVisitor implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
+    private record GroupedTransactionVisitor(QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode> context, EngineSettingsGui settings) implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
 
         @Override
         public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item, int index) {
@@ -180,25 +195,30 @@ public class EngineGui<N extends TransactionNode> {
 
             item.setItemMeta(meta);
         }
+
+        @Override
+        public void clickInspection(Player player, TransactionNode.GroupedTransactionNode node) {
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.previousContext().query().initialNodes());
+
+            player.closeInventory();
+            new EngineGui<>(
+                    new EngineQuery<>(
+                            Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery), true
+                    ),
+                    new QueryContext<>(this.context, newQuery),
+                    this.settings
+            )
+            .open(player);
+        }
     }
 
     private void clickNewSettings(Player player) {
         this.settings.open(player);
     }
 
-    private void clickBack(Player player) {
-        new EngineGui<>(this.context.previousContext().query(), this.context.previousContext().previousContext(), this.settings)
-                .open(player);
-    }
-
-    private void clickInspection(Player player, TransactionNode node) {
-        EngineQuery<N> newQuery = new EngineQuery<>(this.context.query(), false);
-
-        player.closeInventory();
-        new EngineGui<>(
-                newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.getMinTime())))
-                // TODO
-                        .filter((QueryFilter<? super N>) QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(((SingleTransactionNode)node).toUserName()))), this.context, this.settings)
+    @SuppressWarnings("unchecked")
+    private <CN extends TransactionNode> void clickBack(Player player) {
+        new EngineGui<>((EngineQuery<CN>) this.context.previousContext().query(), (QueryContext<CN, N>) this.context.previousContext().previousContext(), this.settings)
                 .open(player);
     }
 

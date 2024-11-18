@@ -98,6 +98,10 @@ public class EngineSettingsGui {
         updateItems();
     }
 
+    public SortingMethod getSortingMethod() {
+        return this.sortingMethod;
+    }
+
     public void open(Player player) {
         this.gui.open(player);
     }

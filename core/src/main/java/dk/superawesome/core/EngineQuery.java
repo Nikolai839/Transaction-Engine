@@ -36,6 +36,11 @@ public class EngineQuery<N extends Node> {
         this.initialNodes.addAll(nodes);
     }
 
+    public EngineQuery(List<N> filteredNodes, List<N> initialNodes) {
+        this.nodes.addAll(filteredNodes);
+        this.initialNodes.addAll(initialNodes);
+    }
+
     public EngineQuery(EngineQuery<N> query, boolean filteredNodes) {
         this(filteredNodes ? query.nodes() : query.initialNodes());
     }
