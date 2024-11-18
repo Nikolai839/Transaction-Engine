@@ -183,12 +183,13 @@ public class EngineSettingsGui {
                 finalQuery = query;
             }
 
-            Node.Collection finalCollection = collection;
+            finalQuery = Engine.doTransformation(collection, this.sortingMethod, finalQuery);
+            EngineQuery<? extends TransactionNode> queryBuffer = finalQuery;
             callback.accept(new BukkitRunnable() {
 
                 @Override
                 public void run() {
-                    new EngineGui<>(doSort(finalCollection, finalQuery))
+                    new EngineGui<>(queryBuffer)
                             .open(player);
                 }
             });
@@ -196,13 +197,5 @@ public class EngineSettingsGui {
         } catch (RequestException ex) {
             Bukkit.getLogger().log(Level.SEVERE, "Faild to query", ex);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private <N extends TransactionNode, V extends PostQueryTransformer.SortBy.SortVisitor<N>> EngineQuery<N> doSort(Node.Collection collection, EngineQuery<N> query) {
-        PostQueryTransformer.SortBy.SortVisitor<N> visitor = PostQueryTransformer.SortBy.getVisitor(collection);
-        PostQueryTransformer<N, N> sort = collection.<N, V>getComparator().visit(this.sortingMethod, (V) visitor);
-
-        return query.transform(sort);
     }
 }

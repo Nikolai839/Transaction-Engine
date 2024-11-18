@@ -12,4 +12,12 @@ public class Engine {
             throw new RequestException(ex);
         }
     }
+
+    @SuppressWarnings("unchecked")
+    public static <N extends TransactionNode, V extends PostQueryTransformer.SortBy.SortVisitor<N>> EngineQuery<N> doTransformation(Node.Collection collection, SortingMethod method, EngineQuery<N> query) {
+        PostQueryTransformer.SortBy.SortVisitor<N> visitor = PostQueryTransformer.SortBy.getVisitor(collection);
+        PostQueryTransformer<N, N> sort = collection.<N, V>getComparator().visit(method, (V) visitor);
+
+        return query.transform(sort);
+    }
 }
