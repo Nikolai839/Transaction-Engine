@@ -2,8 +2,6 @@ package dk.superawesome.spigot.gui;
 
 import de.rapha149.signgui.SignGUI;
 import de.rapha149.signgui.SignGUIAction;
-import de.rapha149.signgui.SignGUIFinishHandler;
-import de.rapha149.signgui.SignGUIResult;
 import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
@@ -41,6 +39,16 @@ import java.util.stream.Stream;
 public class EngineSettingsGui {
 
     private static final Cache CACHE = new Cache();
+
+    public static void loadToCache() {
+        try {
+            Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester()).build());
+        } catch (Exception ex) {
+            Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
+        }
+        Bukkit.getLogger().info("!!!!!!!! Loaded to cache!");
+    }
+
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
     private static final ZoneId ZONE_ID = ZoneId.of("Europe/Copenhagen");
     private static final Pattern USERNAME = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
@@ -269,6 +277,11 @@ public class EngineSettingsGui {
 
     private void configureGrouped(InventoryClickEvent event) {
         if (event.isShiftClick()) {
+            if (this.groupBy.equals(GroupBy.NONE)) {
+                event.getWhoClicked().sendMessage("§cDu kan ikke konfigurere dette, da du ikke har valgt noget at gruppere efter.");
+                return;
+            }
+
             AtomicReference<SignGUI> reference = new AtomicReference<>();
             SignGUI signGui = SignGUI.builder()
                     .setLine(0, "Vælg max tidsinterval")
@@ -358,6 +371,12 @@ public class EngineSettingsGui {
             signGui.open((Player) event.getWhoClicked());
         } else {
             this.groupBy = GroupBy.values()[(this.groupBy.ordinal() + 1) % GroupBy.values().length];
+
+            if (this.groupBy.equals(GroupBy.NONE)) {
+                this.groupUserNamesMaxBetweenUnit = null;
+                this.groupUserNamesMaxBetween = -1;
+                this.groupUserNamesMax = -1;
+            }
 
             updateGroupItem();
         }
@@ -914,7 +933,7 @@ public class EngineSettingsGui {
                 finalQuery = (EngineQuery<T>) query.transform(
                         PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>groupBy(
                                 func, Object::equals,
-                                PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
+                                () -> PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
                                 new PostQueryTransformer.GroupBy.GroupCollector<>() {
                                     @Override
                                     public TransactionNode.GroupedTransactionNode collect(List<SingleTransactionNode> nodes) {

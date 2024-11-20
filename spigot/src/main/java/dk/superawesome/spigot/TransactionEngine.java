@@ -2,6 +2,8 @@ package dk.superawesome.spigot;
 
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.spigot.command.BalEngineCommand;
+import dk.superawesome.spigot.gui.EngineSettingsGui;
+import org.bukkit.Bukkit;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -31,6 +33,8 @@ public final class TransactionEngine extends JavaPlugin {
         if (command != null) {
             command.setExecutor(new BalEngineCommand());
         }
+
+        Bukkit.getScheduler().runTaskAsynchronously(this, EngineSettingsGui::loadToCache);
     }
 
     public DatabaseSettings getSettings() {

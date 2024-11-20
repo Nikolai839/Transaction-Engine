@@ -24,6 +24,14 @@ public class EngineLoadingGui implements Listener {
     private boolean taskCancelled;
     private int nextStartSlot;
 
+    private void setInventoryItem(int i, ItemStack item) {
+        this.gui.getInventory().setItem(i, item);
+    }
+
+    private void setGuiItem(int i, ItemStack item) {
+        this.gui.setItem(i, new GuiItem(item));
+    }
+
     public EngineLoadingGui() {
         this.gui = Gui.gui()
                 .title(Component.text("Indlæser...."))
@@ -32,21 +40,21 @@ public class EngineLoadingGui implements Listener {
                 .create();
 
         for (int i = 3; i < 9; i++) {
-            this.gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7)));
+            setGuiItem(i, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7));
         }
 
         for (int i = 0; i < 3; i++) {
-            this.gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15)));
+            setGuiItem(i, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15));
         }
 
         BukkitRunnable runnable = new BukkitRunnable() {
             @Override
             public void run() {
                 if (nextStartSlot > 0) {
-                    gui.updateItem((nextStartSlot - 1) % 9, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7));
+                    setInventoryItem((nextStartSlot - 1) % 9, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7));
                 }
                 for (int i = nextStartSlot++; i < nextStartSlot + 2; i++) {
-                    gui.updateItem(i % 9, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15));
+                    setInventoryItem(i % 9, new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15));
                 }
             }
         };

@@ -1,13 +1,13 @@
 package dk.superawesome.core;
 
 import java.time.ZonedDateTime;
-import java.time.chrono.ChronoZonedDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.stream.Collector;
+import java.util.function.Supplier;
 
 public interface PostQueryTransformer<N extends Node, T extends Node> {
 
@@ -86,7 +86,20 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                 if (operators.isEmpty()) {
                     return (nodes, node) -> true;
                 }
-                return (nodes, node) -> operators.stream().allMatch(o -> o.checkGroup(nodes, node));
+
+                if (operators.size() == 1) {
+                    return operators.get(0);
+                }
+
+                return (nodes, node) -> {
+                    for (GroupOperator<N> operator : operators) {
+                        if (operator.checkGroup(nodes, node)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                };
             }
 
             static <N extends Node> GroupOperator<N> max(int limit) {
@@ -94,22 +107,43 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             }
 
             static <N extends Node> GroupOperator<N> maxBetween(Function<N, ZonedDateTime> timeSupplier, int amount, TimeUnit unit) {
-                return (l, n) -> {
-                    List<N> testGroup = new ArrayList<>(l);
-                    testGroup.add(n);
+                return new GroupOperator<>() {
 
-                    ZonedDateTime min = testGroup.stream()
-                            .map(timeSupplier)
-                            .min(ChronoZonedDateTime::compareTo)
-                            .orElseThrow();
+                    final long limit = unit.toSeconds(amount);
+                    boolean canExpand = true;
+                    ZonedDateTime max;
+                    ZonedDateTime min;
 
-                    ZonedDateTime max = testGroup.stream()
-                            .map(timeSupplier)
-                            .max(ChronoZonedDateTime::compareTo)
-                            .orElseThrow();
+                    @Override
+                    public boolean checkGroup(List<N> nodes, N node) {
+                        ZonedDateTime time = timeSupplier.apply(node);
+                        ZonedDateTime prevMax = max;
+                        if (max == null || canExpand && time.isAfter(max)) {
+                            max = time;
+                        }
+                        ZonedDateTime prevMin = min;
+                        if (min == null || canExpand && time.isBefore(min)) {
+                            min = time;
+                        }
 
-                    long diff = max.toInstant().toEpochMilli() - min.toInstant().toEpochMilli();
-                    return diff <= unit.toMillis(amount);
+                        long diff = Math.abs(max.toEpochSecond() - min.toEpochSecond());
+                        if (diff > limit) {
+                            if (max == prevMax && min == prevMin) {
+                                canExpand = false;
+                            } else if (prevMax != null && prevMin != null) {
+                                long diffRe = Math.abs(prevMax.toEpochSecond() - prevMin.toEpochSecond());
+                                if (diffRe > limit) {
+                                    canExpand = false;
+                                }
+                            }
+
+                            max = prevMax;
+                            min = prevMin;
+                            return true;
+                        }
+
+                        return false;
+                    }
                 };
             }
 
@@ -127,31 +161,35 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             return groupBy(func, func, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func, BiPredicate<T, T> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
-            return groupBy(func, func, groupBy, operator, collector);
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func, BiPredicate<T, T> groupBy, Supplier<GroupOperator<N>> operatorSupplier, GroupCollector<N, GN, T> collector) {
+            return groupBy(func, func, groupBy, operatorSupplier, collector);
         }
 
         public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func1, Function<N, T> func2, BiPredicate<T, T> groupBy, GroupCollector<N, GN, T> collector) {
             return groupBy(func1, func2, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func1, Function<N, T> func2, BiPredicate<T, T> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
-            return new GroupBy<>((n1, n2) -> groupBy.test(func1.apply(n1), func2.apply(n2)), operator, collector);
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func1, Function<N, T> func2, BiPredicate<T, T> groupBy, Supplier<GroupOperator<N>> operatorSupplier, GroupCollector<N, GN, T> collector) {
+            return new GroupBy<>((n1, n2) -> groupBy.test(func1.apply(n1), func2.apply(n2)), operatorSupplier, collector);
         }
 
         private final BiPredicate<N, N> groupBy;
-        private final GroupOperator<N> operator;
+        private final Supplier<GroupOperator<N>> operatorSupplier;
         private final GroupCollector<N, GN, T> collector;
 
-        public GroupBy(BiPredicate<N, N> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
+        public GroupBy(BiPredicate<N, N> groupBy, Supplier<GroupOperator<N>> operatorSupplier, GroupCollector<N, GN, T> collector) {
             this.groupBy = groupBy;
-            this.operator = operator;
+            this.operatorSupplier = operatorSupplier;
             this.collector = collector;
+        }
+
+        record SubGroup<N extends Node>(List<N> nodes, GroupOperator<N> operator) {
+
         }
 
         @Override
         public List<GN> transform(List<N> nodes) {
-            Map<T, List<List<N>>> groups = new HashMap<>();
+            Map<T, List<SubGroup<N>>> groups = new HashMap<>();
 
             for (N node : nodes) {
                 T key = this.collector.getKey(node);
@@ -160,29 +198,36 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                 }
 
                 groupIteration: {
-                    List<List<N>> subGroups = groups.get(key);
-                    for (List<N> subGroup : subGroups) {
-                        if (this.operator != null && !this.operator.checkGroup(subGroup, node)) {
+                    List<SubGroup<N>> subGroups = groups.get(key);
+                    for (SubGroup<N> subGroup : subGroups) {
+                        if (!subGroup.nodes().isEmpty() && !this.groupBy.test(subGroup.nodes().get(0), node)) {
                             continue;
                         }
 
-                        if (!subGroup.isEmpty() && !this.groupBy.test(subGroup.get(0), node)) {
+                        if (subGroup.operator() != null && subGroup.operator().checkGroup(subGroup.nodes(), node)) {
                             continue;
                         }
 
-                        subGroup.add(node);
+                        subGroup.nodes().add(node);
                         break groupIteration;
                     }
 
                     // no group found
                     List<N> newGroup = new ArrayList<>();
                     newGroup.add(node);
-                    subGroups.add(newGroup);
+
+                    GroupOperator<N> operator = null;
+                    if (this.operatorSupplier != null) {
+                        operator = this.operatorSupplier.get();
+                    }
+
+                    subGroups.add(new SubGroup<>(newGroup, operator));
                 }
             }
 
             return groups.values().stream()
                     .flatMap(List::stream)
+                    .map(SubGroup::nodes)
                     .map(this.collector::collect)
                     .toList();
         }

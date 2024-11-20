@@ -48,6 +48,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer
                         WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1
+                        ORDER BY created DESC
                        """;
             }
 
@@ -60,6 +61,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer
                         WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1 AND l.created > CAST('%s' AS DATETIME) - INTERVAL 1 MINUTE
+                        ORDER BY created DESC
                         """, time);
             }
         };
