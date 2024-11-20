@@ -12,23 +12,23 @@ public class EngineQuery<N extends Node> {
 
     public static <N extends Node> EngineQuery<N> create(ResultSet set, NodeFactory<N> factory, EngineCache<N> cache) throws RequestException {
         try {
-            EngineQuery<N> query = new EngineQuery<>();
-
+            List<N> nodes = new ArrayList<>();
             while (set.next()) {
                 N node = factory.createNode(set);
-                query.nodes.add(node);
+                nodes.add(node);
+
             }
 
-            cache.getCachedNodes().addAll(query.nodes());
+            cache.getCachedNodes().addAll(nodes);
             cache.markCached();
 
-            return query;
+            return new EngineQuery<>(nodes);
         } catch (SQLException ex) {
             throw new RequestException(ex);
         }
     }
 
-    private final List<N> initialNodes = new ArrayList<>();
+    private final List<Node> initialNodes = new ArrayList<>();
     private final List<N> nodes = new ArrayList<>();
 
     public EngineQuery(List<N> nodes) {
@@ -36,16 +36,15 @@ public class EngineQuery<N extends Node> {
         this.initialNodes.addAll(nodes);
     }
 
-    public EngineQuery(List<N> filteredNodes, List<N> initialNodes) {
+    public EngineQuery(List<N> filteredNodes, List<Node> initialNodes) {
         this.nodes.addAll(filteredNodes);
         this.initialNodes.addAll(initialNodes);
     }
 
+    @SuppressWarnings("unchecked")
     public EngineQuery(EngineQuery<N> query, boolean filteredNodes) {
-        this(filteredNodes ? query.nodes() : query.initialNodes());
+        this(new ArrayList<>(filteredNodes ? query.nodes() : (List<N>) query.initialNodes()), new ArrayList<>(query.initialNodes()));
     }
-
-    private EngineQuery() {}
 
     public EngineQuery<N> filter(EngineRequest<? super N> request) {
         this.nodes.removeIf(Predicate.not(request::filter));
@@ -58,7 +57,12 @@ public class EngineQuery<N extends Node> {
     }
 
     public <TN extends Node> EngineQuery<TN> transform(PostQueryTransformer<N, TN> transformer) {
-        return new EngineQuery<>(transformer.transform(this.nodes));
+        return new EngineQuery<>(transformer.transform(this.nodes), this.initialNodes);
+    }
+
+    public void addNodes(List<N> nodes) {
+        this.nodes.addAll(nodes);
+        this.initialNodes.addAll(nodes);
     }
 
     public boolean isEmpty() {
@@ -73,7 +77,7 @@ public class EngineQuery<N extends Node> {
         return this.nodes;
     }
 
-    public List<N> initialNodes() {
+    public List<Node> initialNodes() {
         return this.initialNodes;
     }
 }

@@ -1,23 +1,17 @@
 package dk.superawesome.core;
 
-import java.time.ZonedDateTime;
 import java.time.chrono.ChronoZonedDateTime;
-import java.util.Date;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 
 public interface TransactionNode extends Node {
 
-    ZonedDateTime getMinTime();
+    enum PayType {
+        PAY, GIVE, TAKE, AFGIFT, SERVERSTORE, CHESTSHOP, AREASHOP, SERVERMARKET
+    }
 
     record GroupedTransactionNode(List<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
-
-        @Override
-        public ZonedDateTime getMinTime() {
-            return this.nodes.stream().map(SingleTransactionNode::time).min(ChronoZonedDateTime::compareTo).orElseThrow();
-        }
 
         public enum Bound {
             FROM, TO

@@ -13,12 +13,12 @@ public class Engine {
             }
 
             EngineQuery<N> query = new EngineQuery<>(new ArrayList<>(request.getCache().getCachedNodes()));
-            query.nodes().addAll(
+            query.addNodes(
                     request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().toQueryAfter(request.getCache().latestCacheTime()))
                             .nodes()
             );
 
-            return query;
+            return query.filter(request);
         } catch (Exception ex) {
             throw new RequestException(ex);
         }
@@ -36,7 +36,7 @@ public class Engine {
     @SuppressWarnings("unchecked")
     public static <N extends TransactionNode, V extends PostQueryTransformer.SortBy.SortVisitor<N>> EngineQuery<N> doTransformation(Node.Collection collection, SortingMethod method, EngineQuery<N> query) {
         PostQueryTransformer.SortBy.SortVisitor<N> visitor = PostQueryTransformer.SortBy.getVisitor(collection);
-        PostQueryTransformer<N, N> sort = collection.<N, V>getComparator().visit(method, (V) visitor);
+        PostQueryTransformer<N, N> sort = collection.<N, V>getVisitable().visit(method, (V) visitor);
 
         return query.transform(sort);
     }

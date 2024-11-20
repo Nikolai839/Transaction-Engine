@@ -24,7 +24,7 @@ import java.util.Locale;
 
 public class EngineGui<N extends TransactionNode> {
 
-    private static final DecimalFormat AMOUNT_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.ENGLISH));
+    private static final DecimalFormat AMOUNT_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.GERMANY));
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private final Gui gui;
@@ -100,7 +100,7 @@ public class EngineGui<N extends TransactionNode> {
     private void displayNodes() {
         if (hasDisplayedInitial && !this.context.query().isEmpty()) {
             // clear previous items
-            for (int i = 1; i < 8; i++) {
+            for (int i = 1; i < 9; i++) {
                 for (int j = 1; j < 6; j++) {
                     this.gui.setItem(j, i, new GuiItem(Material.AIR));
                 }
@@ -153,6 +153,7 @@ public class EngineGui<N extends TransactionNode> {
             List<String> lore = new ArrayList<>();
             lore.add("§7Beløb: " + AMOUNT_FORMATTER.format(node.amount()) + " emeralder");
             lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
+            lore.add("§7Transaktionstype: " + node.type().toString().toLowerCase());
             meta.setLore(lore);
 
             item.setItemMeta(meta);
@@ -160,15 +161,12 @@ public class EngineGui<N extends TransactionNode> {
 
         @Override
         public void clickInspection(Player player, SingleTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false);
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false)
+                    .filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.time())))
+                    .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equalsIgnoreCase(node.toUserName())));
 
-            player.closeInventory();
-            new EngineGui<>(
-                    newQuery.filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.getMinTime())))
-                            .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equals(node.toUserName()))),
-                    this.context,
-                    this.settings
-            ).open(player);
+            new EngineGui<>(newQuery, this.context, this.settings)
+                    .open(player);
         }
     }
 

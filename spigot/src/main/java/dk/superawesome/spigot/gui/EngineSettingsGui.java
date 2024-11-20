@@ -46,6 +46,7 @@ public class EngineSettingsGui {
 
     private final Gui gui;
 
+    private TransactionNode.PayType type = null;
     private SortingMethod sortingMethod = SortingMethod.BY_TIME;
     private boolean sortHighestToLowest = true;
     private boolean traceModeEnabled;
@@ -71,7 +72,7 @@ public class EngineSettingsGui {
         for (int i : Arrays.asList(7, 8, 16, 17, 25, 26, 34, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52)) {
             this.gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15)));
         }
-        for (int i : Arrays.asList(9, 10, 11, 12, 13, 14, 15, 27, 28, 29, 30, 31, 32, 33, 37, 39)) {
+        for (int i : Arrays.asList(9, 10, 11, 12, 13, 14, 15, 27, 28, 29, 30, 31, 32, 33, 39)) {
             this.gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 7)));
         }
 
@@ -110,10 +111,20 @@ public class EngineSettingsGui {
         if (event.getClick().isRightClick()) {
             this.sortHighestToLowest = !this.sortHighestToLowest;
         } else {
-            this.sortingMethod = SortingMethod.values()[(sortingMethod.ordinal() + 1) % SortingMethod.values().length];
+            this.sortingMethod = SortingMethod.values()[(this.sortingMethod.ordinal() + 1) % SortingMethod.values().length];
         }
 
         updateSortingItem();
+    }
+
+    private void changePayType(InventoryClickEvent event) {
+        if (this.type == null) {
+            this.type = TransactionNode.PayType.PAY;
+        } else {
+            this.type = TransactionNode.PayType.values()[(this.type.ordinal() + 1) % TransactionNode.PayType.values().length];
+        }
+
+        updateTypeItem();
     }
 
     private void configureTraceMode() {
@@ -192,12 +203,14 @@ public class EngineSettingsGui {
                         }
                     }
 
-                    if (!added) {
-                        player.sendMessage("§cIngen gyldig spiller valgt!");
-                        return Collections.singletonList(SignGUIAction.run(() -> addToUser(player)));
-                    }
+                    if (!Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).allMatch(String::isEmpty)) {
+                        if (!added) {
+                            player.sendMessage("§cIngen gyldig spiller valgt!");
+                            return Collections.singletonList(SignGUIAction.run(() -> addToUser(player)));
+                        }
 
-                    updateUsers();
+                        updateUsers();
+                    }
 
                     return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                 })
@@ -429,6 +442,7 @@ public class EngineSettingsGui {
     }
 
     private void resetSettings() {
+        this.type = null;
         this.sortingMethod = SortingMethod.BY_TIME;
         this.sortHighestToLowest = true;
         this.traceModeEnabled = false;
@@ -453,6 +467,7 @@ public class EngineSettingsGui {
         updateSortingItem();
         updateAmountItem();
         updateTimeItem();
+        updateTypeItem();
 
         this.gui.update();
     }
@@ -463,10 +478,10 @@ public class EngineSettingsGui {
 
         List<Component> filters = new ArrayList<>();
         if (!this.fromUserNames.isEmpty()) {
-            filters.add(Component.text("§7Fra " + this.fromUserNames.toString().replaceAll("\\[]", "")));
+            filters.add(Component.text("§7Fra " + this.fromUserNames.toString().replace("]", "").replace("[", "")));
         }
         if (!this.toUserNames.isEmpty()) {
-            filters.add(Component.text("§7Til " + this.toUserNames.toString().replaceAll("\\[]", "")));
+            filters.add(Component.text("§7Til " + this.toUserNames.toString().replace("]", "").replace("[", "")));
         }
         if (this.timeFrom != null) {
             filters.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeFrom)));
@@ -479,6 +494,9 @@ public class EngineSettingsGui {
         }
         if (this.amountTo != -1) {
             filters.add(Component.text("§7Til " + this.amountTo + " emeralder"));
+        }
+        if (this.type != null) {
+            filters.add(Component.text("§7Transaktionstype " + this.type.toString().toLowerCase()));
         }
 
         executeItemLore.add(Component.empty());
@@ -524,28 +542,6 @@ public class EngineSettingsGui {
                         .build(), event -> openEngineGui((Player) event.getWhoClicked())));
     }
 
-    private void updateTimeItem() {
-        List<Component> timeItemLore = new ArrayList<>();
-        if (this.timeFrom == null && this.timeTo == null) {
-            timeItemLore.add(Component.text("§7Alle tidspunkter"));
-        } else {
-            if (this.timeFrom != null) {
-                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeFrom)));
-            }
-            if (this.timeTo != null) {
-                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeTo)));
-            }
-        }
-
-        this.gui.updateItem(38, new GuiItem(
-                ItemBuilder.from(Material.COMPASS)
-                        .name(Component.text("§6Indstil tidspunkter"))
-                        .lore(timeItemLore)
-                        .build(), event -> configureTimeRange((Player) event.getWhoClicked())));
-
-        updateExecuteItem();
-    }
-
     private void updateAmountItem() {
         List<Component> amountItemLore = new ArrayList<>();
         if (this.amountFrom == -1 && this.amountTo == -1) {
@@ -568,6 +564,28 @@ public class EngineSettingsGui {
         updateExecuteItem();
     }
 
+    private void updateTimeItem() {
+        List<Component> timeItemLore = new ArrayList<>();
+        if (this.timeFrom == null && this.timeTo == null) {
+            timeItemLore.add(Component.text("§7Alle tidspunkter"));
+        } else {
+            if (this.timeFrom != null) {
+                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeFrom)));
+            }
+            if (this.timeTo != null) {
+                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeTo)));
+            }
+        }
+
+        this.gui.updateItem(37, new GuiItem(
+                ItemBuilder.from(Material.COMPASS)
+                        .name(Component.text("§6Indstil tidspunkter"))
+                        .lore(timeItemLore)
+                        .build(), event -> configureTimeRange((Player) event.getWhoClicked())));
+
+        updateExecuteItem();
+    }
+
     private void updateTraceModeItem() {
         this.gui.updateItem(41, new GuiItem(ItemBuilder.from(Material.LEATHER_BOOTS)
                 .name(Component.text("§6Sporingstilstand"))
@@ -575,6 +593,23 @@ public class EngineSettingsGui {
                 .glow(this.traceModeEnabled)
                 .flags(ItemFlag.HIDE_ATTRIBUTES)
                 .build(), __ -> configureTraceMode()));
+
+        updateExecuteItem();
+    }
+
+    private void updateTypeItem() {
+        List<Component> typeItemLore = new ArrayList<>();
+        for (TransactionNode.PayType type : TransactionNode.PayType.values()) {
+            String colour = type.equals(this.type) ? "§e" : "§8";
+            typeItemLore.add(Component.text(colour + " - " + type.name().toLowerCase().replace("_", "-")));
+        }
+        typeItemLore.add(Component.empty());
+
+        this.gui.updateItem(38, new GuiItem(
+                ItemBuilder.from(Material.GLASS_BOTTLE)
+                        .name(Component.text("§6Vælg transaktionstype"))
+                        .lore(typeItemLore)
+                        .build(), this::changePayType));
 
         updateExecuteItem();
     }
@@ -593,6 +628,7 @@ public class EngineSettingsGui {
             String colour = this.sortingMethod == method ? "§e" : "§8";
             sortingItemLore.add(Component.text(colour + " - " + method.name().toLowerCase().replace("_", "-")));
         }
+        sortingItemLore.add(Component.empty());
 
         this.gui.updateItem(42, new GuiItem(ItemBuilder.from(Material.BOOK_AND_QUILL)
                 .name(Component.text("§6Sortér efter"))
@@ -642,6 +678,9 @@ public class EngineSettingsGui {
             }
             if (this.timeTo != null) {
                 builder.to(this.timeTo);
+            }
+            if (this.type != null) {
+                builder.is(this.type);
             }
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());

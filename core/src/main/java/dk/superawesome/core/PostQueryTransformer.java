@@ -70,6 +70,11 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
             SortBy<N> sortByAmount();
         }
+
+        public interface SortVisitable<N extends Node, V extends SortVisitor<N>> {
+
+            PostQueryTransformer<N, N> visit(SortingMethod method, V visitor);
+        }
     }
 
     class GroupBy<N extends Node, GN extends GroupedNode<N>> implements PostQueryTransformer<N, GN> {

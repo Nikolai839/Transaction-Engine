@@ -16,8 +16,9 @@ public interface QueryFilter<N extends Node> {
 
     class FilterTypes {
 
-        public static FilterType<ZonedDateTime, TransactionNode> TIME = new FilterType<>("time", TransactionNode::getMinTime);
+        public static FilterType<ZonedDateTime, SingleTransactionNode> TIME = new FilterType<>("time", SingleTransactionNode::time);
         public static FilterType<Double, SingleTransactionNode> AMOUNT = new FilterType<>("amount", SingleTransactionNode::amount);
+        public static FilterType<TransactionNode.PayType, SingleTransactionNode> TYPE = new FilterType<>("type", SingleTransactionNode::type);
         public static FilterType<String, SingleTransactionNode> FROM_USER = new FilterType<>("from_user", SingleTransactionNode::fromUserName);
         public static FilterType<String, SingleTransactionNode> TO_USER = new FilterType<>("to_user", SingleTransactionNode::toUserName);
     }

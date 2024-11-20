@@ -5,12 +5,7 @@ import java.time.chrono.ChronoZonedDateTime;
 import java.util.EnumMap;
 import java.util.function.Function;
 
-public record SingleTransactionNode(ZonedDateTime time, double amount, String fromUserName, String toUserName) implements TransactionNode {
-
-    @Override
-    public ZonedDateTime getMinTime() {
-        return this.time;
-    }
+public record SingleTransactionNode(ZonedDateTime time, double amount, TransactionNode.PayType type, String fromUserName, String toUserName) implements TransactionNode {
 
     public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<SingleTransactionNode> {
 

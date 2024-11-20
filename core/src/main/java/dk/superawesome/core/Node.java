@@ -12,7 +12,7 @@ public interface Node {
     }
 
     enum Collection {
-        SINGLE(SingleNodeComparator::new), GROUPED(GroupedNodeComparator::new);
+        SINGLE(SingleVisitable::new), GROUPED(GroupedVisitable::new);
 
         public static Collection from(Node node) {
             if (node.isGrouped()) {
@@ -22,18 +22,18 @@ public interface Node {
             }
         }
 
-        private final Supplier<NodeComparator<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier;
+        private final Supplier<PostQueryTransformer.SortBy.SortVisitable<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier;
 
-        Collection(Supplier<NodeComparator<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier) {
+        Collection(Supplier<PostQueryTransformer.SortBy.SortVisitable<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier) {
             this.comparatorSupplier = comparatorSupplier;
         }
 
         @SuppressWarnings("unchecked")
-        public <N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> NodeComparator<N, V> getComparator() {
-            return (NodeComparator<N, V>) this.comparatorSupplier.get();
+        public <N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> PostQueryTransformer.SortBy.SortVisitable<N, V> getVisitable() {
+            return (PostQueryTransformer.SortBy.SortVisitable<N, V>) this.comparatorSupplier.get();
         }
 
-        static abstract private class RegistryNodeComparator<N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> implements NodeComparator<N, V> {
+        static abstract private class RegistryNodeComparator<N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> implements PostQueryTransformer.SortBy.SortVisitable<N, V> {
 
             private final EnumMap<SortingMethod, Function<V, PostQueryTransformer<N, N>>> registry;
 
@@ -47,16 +47,16 @@ public interface Node {
             }
         }
 
-        static class SingleNodeComparator extends RegistryNodeComparator<SingleTransactionNode, SingleTransactionNode.Visitor> {
+        static class SingleVisitable extends RegistryNodeComparator<SingleTransactionNode, SingleTransactionNode.Visitor> {
 
-            private SingleNodeComparator() {
+            private SingleVisitable() {
                 super(SingleTransactionNode.Visitor.SORTINGS);
             }
         }
 
-        static class GroupedNodeComparator extends RegistryNodeComparator<TransactionNode.GroupedTransactionNode, TransactionNode.GroupedTransactionNode.Visitor> {
+        static class GroupedVisitable extends RegistryNodeComparator<TransactionNode.GroupedTransactionNode, TransactionNode.GroupedTransactionNode.Visitor> {
 
-            private GroupedNodeComparator() {
+            private GroupedVisitable() {
                 super(TransactionNode.GroupedTransactionNode.Visitor.SORTINGS);
             }
         }

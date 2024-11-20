@@ -33,6 +33,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
         this.nodeFactory = new TransactionNodeFactory(new Settings.Mapped(new HashMap<>(){{
             put(TransactionNodeFactory.TIME, "created");
             put(TransactionNodeFactory.AMOUNT, "amount");
+            put(TransactionNodeFactory.PAY_TYPE, "paytype");
             put(TransactionNodeFactory.FROM_USER, "fromplayer");
             put(TransactionNodeFactory.TO_USER, "toplayer");
         }}));
@@ -41,7 +42,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             @Override
             public String toQuery() {
                 return """
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer
@@ -53,7 +54,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             public String toQueryAfter(LocalDateTime after) {
                 String time = after.getYear() + "-" + after.getMonthValue() + "-" + after.getDayOfMonth() + " " + after.getHour() + ":" + after.getMinute() + ":" + after.getSecond();
                 return String.format("""
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer

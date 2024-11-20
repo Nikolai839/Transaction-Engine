@@ -7,6 +7,8 @@ import dk.superawesome.core.db.Requester;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTransactionNode, TransactionRequestBuilder> {
 
@@ -49,7 +51,8 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTrans
 
     private TransactionRequestBuilder forPlayers(QueryFilter.FilterType<String, SingleTransactionNode> filter, String... names) {
         if (names.length > 0) {
-            addFilter(filter, filter.makeFilter(n -> Arrays.asList(names).contains(n)));
+            List<String> lowerCasedNames = Arrays.stream(names).map(String::toLowerCase).toList();
+            addFilter(filter, filter.makeFilter(n -> lowerCasedNames.contains(n.toLowerCase())));
         }
 
         return this;
@@ -61,5 +64,10 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTrans
 
     public TransactionRequestBuilder to(String... names) {
         return forPlayers(QueryFilter.FilterTypes.TO_USER, names);
+    }
+
+    public TransactionRequestBuilder is(TransactionNode.PayType type) {
+        addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(t -> t.equals(type)));
+        return this;
     }
 }
