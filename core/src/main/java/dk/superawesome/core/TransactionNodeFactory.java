@@ -15,12 +15,14 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
     public static final String TIME = "time";
     public static final String AMOUNT = "amount";
     public static final String PAY_TYPE = "pay_type";
+    public static final String EXTRA = "extra";
     public static final String FROM_USER = "from_user";
     public static final String TO_USER = "to_user";
 
     private final String timeKey;
     private final String amountKey;
     private final String typeKey;
+    private final String extraKey;
     private final String fromUserKey;
     private final String toUserKey;
 
@@ -28,6 +30,7 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
         this.timeKey = settings.get(TIME);
         this.amountKey = settings.get(AMOUNT);
         this.typeKey = settings.get(PAY_TYPE);
+        this.extraKey = settings.get(EXTRA);
         this.fromUserKey = settings.get(FROM_USER);
         this.toUserKey = settings.get(TO_USER);
     }
@@ -41,6 +44,7 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
                             .plusHours(1),
                     set.getDouble(amountKey),
                     TransactionNode.PayType.valueOf(set.getString(typeKey).toUpperCase()),
+                    set.getString(extraKey),
                     set.getString(fromUserKey),
                     set.getString(toUserKey));
         } catch (SQLException ex) {

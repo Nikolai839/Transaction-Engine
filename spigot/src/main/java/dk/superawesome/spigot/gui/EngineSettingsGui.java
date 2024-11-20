@@ -2,6 +2,8 @@ package dk.superawesome.spigot.gui;
 
 import de.rapha149.signgui.SignGUI;
 import de.rapha149.signgui.SignGUIAction;
+import de.rapha149.signgui.SignGUIFinishHandler;
+import de.rapha149.signgui.SignGUIResult;
 import dev.triumphteam.gui.builder.item.ItemBuilder;
 import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
@@ -27,6 +29,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -43,18 +46,25 @@ public class EngineSettingsGui {
     private static final Pattern USERNAME = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
     private static final ExecutorService THREAD_POOL = Executors.newFixedThreadPool(10);
     private static final BiFunction<Player, Gui, SignGUIAction> SIGN_CALLBACK = (player, gui) -> SignGUIAction.runSync(TransactionEngine.instance, () -> gui.open(player));
+    private static final Map<TimeUnit, String> UNIT_TO_IDENTIFIER = new HashMap<>(){{
+        put (TimeUnit.DAYS, "d");
+        put (TimeUnit.HOURS, "h");
+        put (TimeUnit.MINUTES, "m");
+        put (TimeUnit.SECONDS, "s");
+    }};
 
     private final Gui gui;
 
+    private final List<TransactionNode.PayType> extraTypes = new ArrayList<>();
+    private final List<TransactionNode.PayType> ignoreTypes = new ArrayList<>();
     private TransactionNode.PayType type = null;
     private SortingMethod sortingMethod = SortingMethod.BY_TIME;
     private boolean sortHighestToLowest = true;
     private boolean traceModeEnabled;
-    private boolean groupUserNamesEnabled;
     private int groupUserNamesMax = -1;
-    private int groupUserNamesMaxBetween;
+    private int groupUserNamesMaxBetween = -1;
     private TimeUnit groupUserNamesMaxBetweenUnit;
-    private boolean groupUserNamesFrom;
+    private GroupBy groupBy = GroupBy.NONE;
     private final List<String> toUserNames = new ArrayList<>();
     private final List<String> fromUserNames = new ArrayList<>();
     private double amountFrom = -1;
@@ -86,11 +96,6 @@ public class EngineSettingsGui {
                         .name(Component.text("§6Tilføj fra spiller"))
                         .build(), event -> addFromUser((Player) event.getWhoClicked())));
 
-        this.gui.setItem(40, new GuiItem(
-                ItemBuilder.from(Material.BUCKET)
-                        .name(Component.text("§6Gruppér efter"))
-                        .build(), __ -> configureGrouped()));
-
         this.gui.setItem(35, new GuiItem(
                 ItemBuilder.from(new ItemStack(Material.WOOL, 1, (short) 14))
                         .name(Component.text("§cNulstil indstillinger"))
@@ -118,10 +123,33 @@ public class EngineSettingsGui {
     }
 
     private void changePayType(InventoryClickEvent event) {
-        if (this.type == null) {
-            this.type = TransactionNode.PayType.PAY;
-        } else {
-            this.type = TransactionNode.PayType.values()[(this.type.ordinal() + 1) % TransactionNode.PayType.values().length];
+        multiple: {
+            if (this.type == null) {
+                this.type = TransactionNode.PayType.PAY;
+                if (!event.isShiftClick()) {
+                    break multiple;
+                }
+            }
+
+            if (event.isShiftClick()) {
+                if (event.isRightClick()) {
+                    this.extraTypes.clear();
+                    if (this.ignoreTypes.contains(this.type)) {
+                        this.ignoreTypes.remove(this.type);
+                    } else {
+                        this.ignoreTypes.add(this.type);
+                    }
+                } else {
+                    this.ignoreTypes.clear();
+                    if (this.extraTypes.contains(this.type)) {
+                        this.extraTypes.remove(this.type);
+                    } else {
+                        this.extraTypes.add(this.type);
+                    }
+                }
+            } else {
+                this.type = TransactionNode.PayType.values()[(this.type.ordinal() + 1) % TransactionNode.PayType.values().length];
+            }
         }
 
         updateTypeItem();
@@ -130,10 +158,6 @@ public class EngineSettingsGui {
     private void configureTraceMode() {
         this.traceModeEnabled = !this.traceModeEnabled;
         updateTraceModeItem();
-    }
-
-    private void configureGrouped() {
-
     }
 
     private void updateUsers() {
@@ -243,6 +267,102 @@ public class EngineSettingsGui {
                 .open(player);
     }
 
+    private void configureGrouped(InventoryClickEvent event) {
+        if (event.isShiftClick()) {
+            AtomicReference<SignGUI> reference = new AtomicReference<>();
+            SignGUI signGui = SignGUI.builder()
+                    .setLine(0, "Vælg max tidsinterval")
+                    .setLine(1, this.groupUserNamesMaxBetween != -1 ? this.groupUserNamesMaxBetween + " " + UNIT_TO_IDENTIFIER.get(this.groupUserNamesMaxBetweenUnit) : "")
+                    .setLine(2, "Vælg max antal")
+                    .setLine(3, this.groupUserNamesMax != -1 ? String.valueOf(this.groupUserNamesMax) : "")
+                    .setHandler((player, result) -> {
+                        updateGroupItem();
+
+                        String intervalString = result.getLine(1);
+                        String maxString = result.getLine(3);
+                        if (intervalString.isEmpty() && maxString.isEmpty()) {
+                            groupUserNamesMax = -1;
+                            groupUserNamesMaxBetween = -1;
+                            groupUserNamesMaxBetweenUnit = null;
+                            return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
+                        }
+
+                        boolean errorParsingNumber = false;
+                        if (!maxString.isEmpty()) {
+                            try {
+                                groupUserNamesMax = Integer.parseInt(maxString.trim());
+                            } catch (NumberFormatException ex) {
+                                player.sendMessage("§cUgyldig tal valgt!");
+                                errorParsingNumber = true;
+                            }
+                        } else {
+                            groupUserNamesMax = -1;
+                        }
+
+                        if (!intervalString.isEmpty()) {
+                            String[] parts = Arrays.stream(result.getLine(1).split(" "))
+                                    .map(String::trim)
+                                    .filter(Predicate.not(String::isEmpty))
+                                    .toArray(String[]::new);
+
+                            boolean errorParsingInterval = false;
+
+                            if (parts.length > 0 && parts.length < 3) {
+                                String magnitudeString = parts[0].codePoints()
+                                        .takeWhile(Character::isDigit)
+                                        .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+                                String unitString;
+                                if (parts.length == 1) {
+                                    unitString = parts[0].replace(magnitudeString, "");
+                                } else {
+                                    unitString = parts[1];
+                                }
+
+                                parse: {
+                                    int magnitude;
+                                    try {
+                                        magnitude = Integer.parseInt(magnitudeString);
+                                        Optional<TimeUnit> unitOptional = UNIT_TO_IDENTIFIER.entrySet().stream()
+                                                .filter(e -> e.getValue().equalsIgnoreCase(unitString))
+                                                .findFirst()
+                                                .map(Map.Entry::getKey);
+                                        if (unitOptional.isPresent()) {
+                                            groupUserNamesMaxBetween = magnitude;
+                                            groupUserNamesMaxBetweenUnit = unitOptional.get();
+                                            break parse;
+                                        }
+                                    } catch (NumberFormatException ex) {
+                                        // ignore
+                                    }
+                                    errorParsingInterval = true;
+                                }
+                            }
+
+                            if (errorParsingInterval) {
+                                player.sendMessage("§cUygldig tidsinterval valgt!");
+                            }
+
+                            if (errorParsingNumber && errorParsingInterval) {
+                                return Collections.singletonList(SignGUIAction.runSync(TransactionEngine.instance, () -> reference.get().open(player)));
+                            }
+                        } else {
+                            groupUserNamesMaxBetween = -1;
+                            groupUserNamesMaxBetweenUnit = null;
+                        }
+
+                        return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
+                    })
+                    .build();
+
+            reference.set(signGui);
+            signGui.open((Player) event.getWhoClicked());
+        } else {
+            this.groupBy = GroupBy.values()[(this.groupBy.ordinal() + 1) % GroupBy.values().length];
+
+            updateGroupItem();
+        }
+    }
+
     private void configureAmountRange(Player player) {
         SignGUI.builder()
                 .setLine(0, "Vælg fra")
@@ -254,6 +374,8 @@ public class EngineSettingsGui {
                     String toString = result.getLine(3);
 
                     if (fromString.isEmpty() && toString.isEmpty()) {
+                        this.amountFrom = -1;
+                        this.amountTo = -1;
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                     }
 
@@ -279,6 +401,8 @@ public class EngineSettingsGui {
                                 throw new NumberFormatException();
                             }
                             this.amountFrom = from;
+                        } else {
+                            this.amountFrom = -1;
                         }
 
                         if (to != -1) {
@@ -286,6 +410,8 @@ public class EngineSettingsGui {
                                 throw new NumberFormatException();
                             }
                             this.amountTo = to;
+                        } else {
+                            this.amountTo = -1;
                         }
 
                         updateAmountItem();
@@ -317,6 +443,8 @@ public class EngineSettingsGui {
                     String toString = result.getLine(3);
 
                     if (fromString.isEmpty() && toString.isEmpty()) {
+                        this.timeFrom = null;
+                        this.timeTo = null;
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                     }
 
@@ -331,19 +459,24 @@ public class EngineSettingsGui {
                             to = parseString(toString);
                         }
 
-                        if (to != null) {
-                            ZonedDateTime zonedTo = to.atZone(ZONE_ID);
-                            if (zonedTo.toInstant().isAfter(Instant.now())) {
-                                throw new InvalidDateException();
-                            }
-                            this.timeTo = zonedTo;
-                        }
                         if (from != null) {
                             ZonedDateTime zonedFrom = from.atZone(ZONE_ID);
                             if (zonedFrom.toInstant().isAfter(Instant.now())) {
                                 throw new InvalidDateException();
                             }
                             this.timeFrom = zonedFrom;
+                        } else {
+                            this.timeFrom = null;
+                        }
+
+                        if (to != null) {
+                            ZonedDateTime zonedTo = to.atZone(ZONE_ID);
+                            if (zonedTo.toInstant().isAfter(Instant.now())) {
+                                throw new InvalidDateException();
+                            }
+                            this.timeTo = zonedTo;
+                        } else {
+                            this.timeTo = null;
                         }
 
                         updateTimeItem();
@@ -382,7 +515,6 @@ public class EngineSettingsGui {
                         .toString());
 
         if (daysMonthsYears.length != 3) {
-            Bukkit.broadcastMessage(Arrays.toString(daysMonthsYears) + " ");
             throw new InvalidDateException();
         }
         if (timeOfDay.length > 3) {
@@ -442,13 +574,14 @@ public class EngineSettingsGui {
     }
 
     private void resetSettings() {
+        this.extraTypes.clear();
+        this.ignoreTypes.clear();
         this.type = null;
         this.sortingMethod = SortingMethod.BY_TIME;
         this.sortHighestToLowest = true;
         this.traceModeEnabled = false;
-        this.groupUserNamesEnabled = false;
         this.groupUserNamesMax = -1;
-        this.groupUserNamesFrom = false;
+        this.groupBy = GroupBy.NONE;
         this.groupUserNamesMaxBetween = -1;
         this.groupUserNamesMaxBetweenUnit = null;
         this.toUserNames.clear();
@@ -468,6 +601,7 @@ public class EngineSettingsGui {
         updateAmountItem();
         updateTimeItem();
         updateTypeItem();
+        updateGroupItem();
 
         this.gui.update();
     }
@@ -495,8 +629,18 @@ public class EngineSettingsGui {
         if (this.amountTo != -1) {
             filters.add(Component.text("§7Til " + this.amountTo + " emeralder"));
         }
-        if (this.type != null) {
-            filters.add(Component.text("§7Transaktionstype " + this.type.toString().toLowerCase()));
+
+        if (!this.ignoreTypes.isEmpty()) {
+            filters.add(Component.text("§7Ikke transaktionstype " + this.ignoreTypes.stream().map(TransactionNode.PayType::toString).map(String::toLowerCase).toList().toString().replace("]", "").replace("[", "")));
+        } else {
+            List<TransactionNode.PayType> types = new ArrayList<>(this.extraTypes);
+            if (this.type != null && !types.contains(this.type)) {
+                types.add(this.type);
+            }
+
+            if (!types.isEmpty()) {
+                filters.add(Component.text("§7Transaktionstype " + types.stream().map(TransactionNode.PayType::toString).map(String::toLowerCase).toList().toString().replace("]", "").replace("[", "")));
+            }
         }
 
         executeItemLore.add(Component.empty());
@@ -508,19 +652,19 @@ public class EngineSettingsGui {
         }
 
         executeItemLore.add(Component.empty());
-        if (this.groupUserNamesEnabled) {
-            if (this.groupUserNamesFrom) {
-                executeItemLore.add(Component.text("§7Gruppere fra spillere"));
-            } else {
-                executeItemLore.add(Component.text("§7Gruppere til spillere"));
+        if (!this.groupBy.equals(GroupBy.NONE)) {
+            if (this.groupBy == GroupBy.FROM_USER) {
+                executeItemLore.add(Component.text("§7Grupperer fra spillere"));
+            } else if (this.groupBy == GroupBy.TO_USER) {
+                executeItemLore.add(Component.text("§7Grupperer til spillere"));
             }
 
             if (this.groupUserNamesMax != -1) {
-                executeItemLore.add(Component.text("§7Højest antal: " + this.groupUserNamesMax));
+                executeItemLore.add(Component.text("§7Højeste gruppe-antal: " + this.groupUserNamesMax));
             }
 
             if (this.groupUserNamesMaxBetween != -1) {
-                executeItemLore.add(Component.text("§7Højest tidsforskel: " + this.groupUserNamesMaxBetween + " " + this.groupUserNamesMaxBetweenUnit.toString().toLowerCase()));
+                executeItemLore.add(Component.text("§7Højest gruppe-tidsinterval: " + this.groupUserNamesMaxBetween + " " + this.groupUserNamesMaxBetweenUnit.toString().toLowerCase()));
             }
         }
 
@@ -528,7 +672,7 @@ public class EngineSettingsGui {
             executeItemLore.add(Component.text("§7Sporingstilstand slået til"));
         }
 
-        executeItemLore.add(Component.text("§7Sorteres efter " + this.sortingMethod.toString().toLowerCase().replace("_", "-")));
+        executeItemLore.add(Component.text("§7Sorteres efter " + this.sortingMethod.getName()));
         if (this.sortHighestToLowest) {
             executeItemLore.add(Component.text("§7Sorteres højest til lavest"));
         } else {
@@ -545,13 +689,13 @@ public class EngineSettingsGui {
     private void updateAmountItem() {
         List<Component> amountItemLore = new ArrayList<>();
         if (this.amountFrom == -1 && this.amountTo == -1) {
-            amountItemLore.add(Component.text("§7Alle beløber"));
+            amountItemLore.add(Component.text("§7Alle beløber §8(Klik)"));
         } else {
             if (this.amountFrom != 1) {
-                amountItemLore.add(Component.text("§7Fra " + this.amountFrom + " emeralder"));
+                amountItemLore.add(Component.text("§7Fra " + this.amountFrom + " emeralder §8(Klik)"));
             }
             if (this.amountTo != -1) {
-                amountItemLore.add(Component.text("§7Fra " + this.amountTo + " emeralder"));
+                amountItemLore.add(Component.text("§7Fra " + this.amountTo + " emeralder §8(Klik)"));
             }
         }
 
@@ -567,13 +711,13 @@ public class EngineSettingsGui {
     private void updateTimeItem() {
         List<Component> timeItemLore = new ArrayList<>();
         if (this.timeFrom == null && this.timeTo == null) {
-            timeItemLore.add(Component.text("§7Alle tidspunkter"));
+            timeItemLore.add(Component.text("§7Alle tidspunkter §8(Klik)"));
         } else {
             if (this.timeFrom != null) {
-                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeFrom)));
+                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeFrom) + " §8(Klik)"));
             }
             if (this.timeTo != null) {
-                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeTo)));
+                timeItemLore.add(Component.text("§7Fra " + TIME_FORMATTER.format(this.timeTo) + " §8(Klik)"));
             }
         }
 
@@ -589,7 +733,7 @@ public class EngineSettingsGui {
     private void updateTraceModeItem() {
         this.gui.updateItem(41, new GuiItem(ItemBuilder.from(Material.LEATHER_BOOTS)
                 .name(Component.text("§6Sporingstilstand"))
-                .lore(Component.text((this.traceModeEnabled ? "§7Slået til" : "§7Slået fra") + " §8(Klik)"))
+                .lore(Component.text((this.traceModeEnabled ? "§7Slået til" : "§7Slået fra") + " §8(Klik) §c(Kommer snart!)"))
                 .glow(this.traceModeEnabled)
                 .flags(ItemFlag.HIDE_ATTRIBUTES)
                 .build(), __ -> configureTraceMode()));
@@ -599,9 +743,23 @@ public class EngineSettingsGui {
 
     private void updateTypeItem() {
         List<Component> typeItemLore = new ArrayList<>();
+        typeItemLore.add(Component.text("§7Shift+§cHøjreklik §7for at ignorere"));
+        typeItemLore.add(Component.text("§7Shift+§aVenstreklik §7for at tilføje"));
+        typeItemLore.add(Component.text("§7Husk man kan have mere end en"));
+        typeItemLore.add(Component.empty());
+
+        typeItemLore.add(Component.text("§7Valgt type: §8(Klik) " + (this.type == null ? "§c(Ingen)" : "")));
         for (TransactionNode.PayType type : TransactionNode.PayType.values()) {
             String colour = type.equals(this.type) ? "§e" : "§8";
-            typeItemLore.add(Component.text(colour + " - " + type.name().toLowerCase().replace("_", "-")));
+
+            String extra = "";
+            if (this.extraTypes.contains(type)) {
+                extra = "§a+ ";
+            }
+            if (this.ignoreTypes.contains(type)) {
+                extra = "§c! ";
+            }
+            typeItemLore.add(Component.text(extra + colour + " - " + type.name().toLowerCase()));
         }
         typeItemLore.add(Component.empty());
 
@@ -613,6 +771,7 @@ public class EngineSettingsGui {
 
         updateExecuteItem();
     }
+
 
     private void updateSortingItem() {
         List<Component> sortingItemLore = new ArrayList<>();
@@ -626,7 +785,7 @@ public class EngineSettingsGui {
         sortingItemLore.add(Component.text("§7Sorteres efter: §8(Venstreklik)"));
         for (SortingMethod method : SortingMethod.values()) {
             String colour = this.sortingMethod == method ? "§e" : "§8";
-            sortingItemLore.add(Component.text(colour + " - " + method.name().toLowerCase().replace("_", "-")));
+            sortingItemLore.add(Component.text(colour + " - " + method.getName()));
         }
         sortingItemLore.add(Component.empty());
 
@@ -639,6 +798,36 @@ public class EngineSettingsGui {
         updateExecuteItem();
     }
 
+    private void updateGroupItem() {
+        List<Component> groupItemLore = new ArrayList<>();
+        if (this.groupUserNamesMax == -1) {
+            groupItemLore.add(Component.text("§7Ingen kapacitet på gruppe-antal §8(Shift+Klik)"));
+        } else {
+            groupItemLore.add(Component.text("§7Højeste gruppe-antal: " + this.groupUserNamesMax + " §8(Shift+Klik)"));
+        }
+        if (this.groupUserNamesMaxBetween == -1) {
+            groupItemLore.add(Component.text("§7Ingen grænse på gruppe-tidsinterval §8(Shift+Klik)"));
+        } else {
+            groupItemLore.add(Component.text("§7Højeste gruppe-tidsinterval: " + this.groupUserNamesMaxBetween + UNIT_TO_IDENTIFIER.get(this.groupUserNamesMaxBetweenUnit) + " §8(Shift+Klik)"));
+        }
+        groupItemLore.add(Component.empty());
+
+        groupItemLore.add(Component.text("§7Valgt gruppering: §7(Klik) " + (this.groupBy == null ? "§c(Ingen)" : "")));
+        for (GroupBy groupBy : GroupBy.values()){
+            String colour = this.groupBy == groupBy ? "§e" : "§8";
+            groupItemLore.add(Component.text(colour + " - " + groupBy.getName()));
+        }
+
+        this.gui.updateItem(40, new GuiItem(
+                ItemBuilder.from(Material.BUCKET)
+                        .name(Component.text("§6Gruppér efter"))
+                        .lore(groupItemLore)
+                        .glow(!this.groupBy.equals(GroupBy.NONE))
+                        .build(), this::configureGrouped));
+
+        updateExecuteItem();
+    }
+
     private void openEngineGui(Player player) {
         try {
             EngineLoadingGui gui = new EngineLoadingGui();
@@ -646,7 +835,6 @@ public class EngineSettingsGui {
             Consumer<BukkitRunnable> callback = task -> {
                 // make sure the player has not closed the inventory while loading
                 if (!gui.isTaskCancelled()) {
-                    player.closeInventory();
                     task.runTask(TransactionEngine.instance);
                 }
             };
@@ -679,8 +867,18 @@ public class EngineSettingsGui {
             if (this.timeTo != null) {
                 builder.to(this.timeTo);
             }
-            if (this.type != null) {
-                builder.is(this.type);
+
+            if (!this.ignoreTypes.isEmpty()) {
+                builder.isNot(this.ignoreTypes.toArray(TransactionNode.PayType[]::new));
+            } else {
+                List<TransactionNode.PayType> types = new ArrayList<>(this.extraTypes);
+                if (this.type != null && !types.contains(this.type)) {
+                    types.add(this.type);
+                }
+
+                if (!types.isEmpty()) {
+                    builder.is(types.toArray(TransactionNode.PayType[]::new));
+                }
             }
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
@@ -690,17 +888,19 @@ public class EngineSettingsGui {
 
             Node.Collection collection = Node.Collection.SINGLE;
             EngineQuery<T> finalQuery;
-            if (this.groupUserNamesEnabled) {
+            if (!this.groupBy.equals(GroupBy.NONE)) {
                 collection = Node.Collection.GROUPED;
 
-                Function<SingleTransactionNode, Object> func;
+                Function<SingleTransactionNode, String> func;
                 TransactionNode.GroupedTransactionNode.Bound bound;
-                if (this.groupUserNamesFrom) {
+                if (this.groupBy == GroupBy.FROM_USER) {
                     bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
                     func = SingleTransactionNode::fromUserName;
-                } else {
+                } else if (this.groupBy == GroupBy.TO_USER) {
                     bound = TransactionNode.GroupedTransactionNode.Bound.TO;
                     func = SingleTransactionNode::toUserName;
+                } else {
+                    throw new IllegalStateException();
                 }
 
                 List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode>> operators = new ArrayList<>();
@@ -712,10 +912,20 @@ public class EngineSettingsGui {
                 }
 
                 finalQuery = (EngineQuery<T>) query.transform(
-                        PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode>groupBy(
+                        PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>groupBy(
                                 func, Object::equals,
                                 PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
-                                nodes -> new TransactionNode.GroupedTransactionNode(nodes, bound)));
+                                new PostQueryTransformer.GroupBy.GroupCollector<>() {
+                                    @Override
+                                    public TransactionNode.GroupedTransactionNode collect(List<SingleTransactionNode> nodes) {
+                                        return new TransactionNode.GroupedTransactionNode(nodes, bound);
+                                    }
+
+                                    @Override
+                                    public String getKey(SingleTransactionNode node) {
+                                        return func.apply(node);
+                                    }
+                                }));
             } else {
                 finalQuery = (EngineQuery<T>) query;
             }
@@ -736,6 +946,20 @@ public class EngineSettingsGui {
 
         } catch (RequestException ex) {
             Bukkit.getLogger().log(Level.SEVERE, "Faild to query", ex);
+        }
+    }
+
+    private enum GroupBy {
+        NONE("ingen"), TO_USER("til-spiller"), FROM_USER("fra-spiller");
+
+        private final String name;
+
+        GroupBy(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return this.name;
         }
     }
 }

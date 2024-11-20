@@ -26,6 +26,7 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
     class SortBy<N extends Node> implements PostQueryTransformer<N, N> {
 
+        @SuppressWarnings("unchecked")
         public static <N extends Node> SortVisitor<N> getVisitor(Node.Collection collection) {
             return switch (collection) {
                 case SINGLE -> (SortVisitor<N>) new SingleTransactionNode.Visitor();
@@ -77,11 +78,14 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
         }
     }
 
-    class GroupBy<N extends Node, GN extends GroupedNode<N>> implements PostQueryTransformer<N, GN> {
+    class GroupBy<N extends Node, GN extends GroupedNode<N>, T> implements PostQueryTransformer<N, GN> {
 
         public interface GroupOperator<N extends Node> {
 
             static <N extends Node> GroupOperator<N> mix(List<GroupOperator<N>> operators) {
+                if (operators.isEmpty()) {
+                    return (nodes, node) -> true;
+                }
                 return (nodes, node) -> operators.stream().allMatch(o -> o.checkGroup(nodes, node));
             }
 
@@ -94,9 +98,17 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                     List<N> testGroup = new ArrayList<>(l);
                     testGroup.add(n);
 
-                    List<ZonedDateTime> postTest = testGroup.stream().map(timeSupplier).sorted(ChronoZonedDateTime::compareTo).toList();
-                    long diff = postTest.get(postTest.size() - 1).toInstant().toEpochMilli() - postTest.get(0).toInstant().toEpochMilli();
+                    ZonedDateTime min = testGroup.stream()
+                            .map(timeSupplier)
+                            .min(ChronoZonedDateTime::compareTo)
+                            .orElseThrow();
 
+                    ZonedDateTime max = testGroup.stream()
+                            .map(timeSupplier)
+                            .max(ChronoZonedDateTime::compareTo)
+                            .orElseThrow();
+
+                    long diff = max.toInstant().toEpochMilli() - min.toInstant().toEpochMilli();
                     return diff <= unit.toMillis(amount);
                 };
             }
@@ -104,32 +116,34 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             boolean checkGroup(List<N> nodes, N node);
         }
 
-        public interface GroupCollector<N extends Node, GN extends GroupedNode<N>> {
+        public interface GroupCollector<N extends Node, GN extends GroupedNode<N>, T> {
 
             GN collect(List<N> nodes);
+
+            T getKey(N node);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func, BiPredicate<T, T> groupBy, GroupCollector<N, GN, T> collector) {
             return groupBy(func, func, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func, BiPredicate<T, T> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
             return groupBy(func, func, groupBy, operator, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func1, Function<N, T> func2, BiPredicate<T, T> groupBy, GroupCollector<N, GN, T> collector) {
             return groupBy(func1, func2, groupBy, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>> GroupBy<N, GN> groupBy(Function<N, Object> func1, Function<N, Object> func2, BiPredicate<Object, Object> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
+        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(Function<N, T> func1, Function<N, T> func2, BiPredicate<T, T> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
             return new GroupBy<>((n1, n2) -> groupBy.test(func1.apply(n1), func2.apply(n2)), operator, collector);
         }
 
         private final BiPredicate<N, N> groupBy;
         private final GroupOperator<N> operator;
-        private final GroupCollector<N, GN> collector;
+        private final GroupCollector<N, GN, T> collector;
 
-        public GroupBy(BiPredicate<N, N> groupBy, GroupOperator<N> operator, GroupCollector<N, GN> collector) {
+        public GroupBy(BiPredicate<N, N> groupBy, GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
             this.groupBy = groupBy;
             this.operator = operator;
             this.collector = collector;
@@ -137,35 +151,40 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
         @Override
         public List<GN> transform(List<N> nodes) {
-            List<List<N>> groups = new ArrayList<>();
-            for (N node : nodes) {
-                check_node: {
-                    check_group: {
-                        for (List<N> group : groups) {
-                            if (this.operator != null && !this.operator.checkGroup(group, node)) {
-                                continue;
-                            }
+            Map<T, List<List<N>>> groups = new HashMap<>();
 
-                            for (N n : group) {
-                                if (!this.groupBy.test(node, n)) {
-                                    break check_group;
-                                }
-                            }
-                            group.add(node);
-                            break check_node;
+            for (N node : nodes) {
+                T key = this.collector.getKey(node);
+                if (!groups.containsKey(key)) {
+                    groups.put(key, new ArrayList<>());
+                }
+
+                groupIteration: {
+                    List<List<N>> subGroups = groups.get(key);
+                    for (List<N> subGroup : subGroups) {
+                        if (this.operator != null && !this.operator.checkGroup(subGroup, node)) {
+                            continue;
                         }
+
+                        if (!subGroup.isEmpty() && !this.groupBy.test(subGroup.get(0), node)) {
+                            continue;
+                        }
+
+                        subGroup.add(node);
+                        break groupIteration;
                     }
+
+                    // no group found
                     List<N> newGroup = new ArrayList<>();
                     newGroup.add(node);
-                    groups.add(newGroup);
+                    subGroups.add(newGroup);
                 }
             }
 
-            List<GN> newNodes = new ArrayList<>();
-            for (List<N> group : groups) {
-                newNodes.add(this.collector.collect(group));
-            }
-            return newNodes;
+            return groups.values().stream()
+                    .flatMap(List::stream)
+                    .map(this.collector::collect)
+                    .toList();
         }
     }
 }

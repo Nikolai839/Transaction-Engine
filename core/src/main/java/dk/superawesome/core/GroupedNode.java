@@ -8,5 +8,9 @@ public interface GroupedNode<N extends Node> extends Node {
         return true;
     }
 
+    default int size() {
+        return getNodes().size();
+    }
+
     List<N> getNodes();
 }

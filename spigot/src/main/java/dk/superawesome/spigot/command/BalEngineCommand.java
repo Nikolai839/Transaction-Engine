@@ -22,7 +22,6 @@ public class BalEngineCommand implements CommandExecutor {
             return true;
         }
 
-        player.closeInventory();
         new EngineSettingsGui().open(player);
         return true;
     }

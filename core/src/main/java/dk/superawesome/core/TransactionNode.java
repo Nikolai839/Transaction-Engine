@@ -1,14 +1,16 @@
 package dk.superawesome.core;
 
 import java.time.chrono.ChronoZonedDateTime;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 public interface TransactionNode extends Node {
 
     enum PayType {
-        PAY, GIVE, TAKE, AFGIFT, SERVERSTORE, CHESTSHOP, AREASHOP, SERVERMARKET
+        PAY, CHESTSHOP, SERVERSTORE, AFGIFT, GIVE, TAKE, AREASHOP, SERVERMARKET
     }
 
     record GroupedTransactionNode(List<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
@@ -20,6 +22,22 @@ public interface TransactionNode extends Node {
         @Override
         public List<SingleTransactionNode> getNodes() {
             return this.nodes;
+        }
+
+        public double getAmount() {
+            return this.nodes.stream().map(SingleTransactionNode::amount).reduce(Double::sum).orElse(0d);
+        }
+
+        public Optional<SingleTransactionNode> getHighestTransaction() {
+            return this.nodes.stream().max(Comparator.comparingDouble(SingleTransactionNode::amount));
+        }
+
+        public Optional<SingleTransactionNode> getOldestTransaction() {
+            return this.nodes.stream().min(Comparator.comparing(SingleTransactionNode::time));
+        }
+
+        public Optional<SingleTransactionNode> getLatestTransaction() {
+            return this.nodes.stream().max(Comparator.comparing(SingleTransactionNode::time));
         }
 
         public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<GroupedTransactionNode> {

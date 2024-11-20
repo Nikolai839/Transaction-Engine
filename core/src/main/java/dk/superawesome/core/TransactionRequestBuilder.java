@@ -8,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTransactionNode, TransactionRequestBuilder> {
@@ -66,8 +67,15 @@ public class TransactionRequestBuilder extends EngineRequest.Builder<SingleTrans
         return forPlayers(QueryFilter.FilterTypes.TO_USER, names);
     }
 
-    public TransactionRequestBuilder is(TransactionNode.PayType type) {
-        addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(t -> t.equals(type)));
+    public TransactionRequestBuilder is(TransactionNode.PayType... types) {
+        List<TransactionNode.PayType> typesList = Arrays.stream(types).toList();
+        addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(typesList::contains));
+        return this;
+    }
+
+    public TransactionRequestBuilder isNot(TransactionNode.PayType... types) {
+        List<TransactionNode.PayType> typesList = Arrays.stream(types).toList();
+        addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(Predicate.not(typesList::contains)));
         return this;
     }
 }

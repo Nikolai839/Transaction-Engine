@@ -34,6 +34,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             put(TransactionNodeFactory.TIME, "created");
             put(TransactionNodeFactory.AMOUNT, "amount");
             put(TransactionNodeFactory.PAY_TYPE, "paytype");
+            put(TransactionNodeFactory.EXTRA, "extra");
             put(TransactionNodeFactory.FROM_USER, "fromplayer");
             put(TransactionNodeFactory.TO_USER, "toplayer");
         }}));
@@ -42,7 +43,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             @Override
             public String toQuery() {
                 return """
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer
@@ -54,7 +55,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             public String toQueryAfter(LocalDateTime after) {
                 String time = after.getYear() + "-" + after.getMonthValue() + "-" + after.getDayOfMonth() + " " + after.getHour() + ":" + after.getMinute() + ":" + after.getSecond();
                 return String.format("""
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype
+                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.toplayer
                         LEFT JOIN players p2 ON p2.id = l.fromplayer
@@ -94,7 +95,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     public ResultSet runQuery(String sql, Object... values) throws SQLException {
         ResultSet rs = null;
         try (Connection conn = this.source.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
+            PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
 
             for (int i = 0; i < values.length; i++) {
                 stmt.setObject(i + 1, values[i]);

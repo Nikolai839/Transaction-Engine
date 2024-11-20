@@ -5,26 +5,21 @@ import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.SkullType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.material.MaterialData;
 
-import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+import java.util.function.Function;
 
 public class EngineGui<N extends TransactionNode> {
 
-    private static final DecimalFormat AMOUNT_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.GERMANY));
+    private static final DecimalFormat EMERALD_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.GERMANY));
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private final Gui gui;
@@ -43,7 +38,7 @@ public class EngineGui<N extends TransactionNode> {
         this(query, null, settings);
     }
 
-    private EngineGui(EngineQuery<N> query, QueryContext<N, ?> previousContext, EngineSettingsGui settings) {
+    private EngineGui(EngineQuery<N> query, QueryContext<?, ?> previousContext, EngineSettingsGui settings) {
         this.context = new QueryContext<>(previousContext, query);
         this.settings = settings;
         this.gui = Gui.gui()
@@ -81,7 +76,11 @@ public class EngineGui<N extends TransactionNode> {
     }
 
     public void open(Player player) {
-        this.gui.open(player);
+        if (!this.context.query().isEmpty()) {
+            this.gui.open(player);
+        } else {
+            player.sendMessage("§cDenne transaktionsforespørgsel er tom!");
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -135,81 +134,6 @@ public class EngineGui<N extends TransactionNode> {
         hasDisplayedInitial = true;
     }
 
-    private interface TransactionVisitor<T extends TransactionNode> {
-
-        void applyToItem(T node, ItemStack item, int index);
-
-        void clickInspection(Player player, T node);
-    }
-
-    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode>  {
-
-        @Override
-        public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
-            SkullMeta meta = (SkullMeta) item.getItemMeta();
-            meta.setOwner(node.toUserName());
-            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8)");
-
-            List<String> lore = new ArrayList<>();
-            lore.add("§7Beløb: " + AMOUNT_FORMATTER.format(node.amount()) + " emeralder");
-            lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
-            lore.add("§7Transaktionstype: " + node.type().toString().toLowerCase());
-            meta.setLore(lore);
-
-            item.setItemMeta(meta);
-        }
-
-        @Override
-        public void clickInspection(Player player, SingleTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false)
-                    .filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.time())))
-                    .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equalsIgnoreCase(node.toUserName())));
-
-            new EngineGui<>(newQuery, this.context, this.settings)
-                    .open(player);
-        }
-    }
-
-    private record GroupedTransactionVisitor(QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode> context, EngineSettingsGui settings) implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
-
-        @Override
-        public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item, int index) {
-            SkullMeta meta = (SkullMeta) item.getItemMeta();
-
-            switch (node.bound()) {
-                case TO:
-                    String toPlayer = node.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
-
-                    meta.setOwner(toPlayer);
-                    meta.setDisplayName("§7Til §e" + toPlayer + " §(§e" + index + "§8)");
-                    break;
-                case FROM:
-                    String fromPlayer = node.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
-
-                    meta.setOwner(fromPlayer);
-                    meta.setDisplayName("§7Fra §e" + fromPlayer + " §(§e" + index + "§8)");
-                    break;
-            }
-
-            item.setItemMeta(meta);
-        }
-
-        @Override
-        public void clickInspection(Player player, TransactionNode.GroupedTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.previousContext().query().initialNodes());
-
-            player.closeInventory();
-            new EngineGui<>(
-                    new EngineQuery<>(
-                            Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery), true
-                    ),
-                    new QueryContext<>(this.context, newQuery),
-                    this.settings
-            )
-            .open(player);
-        }
-    }
-
     private void clickNewSettings(Player player) {
         this.settings.open(player);
     }
@@ -236,5 +160,123 @@ public class EngineGui<N extends TransactionNode> {
 
         scrolledDown++;
         displayNodes();
+    }
+
+    private interface TransactionVisitor<T extends TransactionNode> {
+
+        void applyToItem(T node, ItemStack item, int index);
+
+        void clickInspection(Player player, T node);
+    }
+
+    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode>  {
+
+        @Override
+        public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
+            SkullMeta meta = (SkullMeta) item.getItemMeta();
+            meta.setOwner(node.toUserName());
+            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8) (Klik for inspektion)");
+
+            List<String> lore = new ArrayList<>();
+            lore.add("§8Ved inspektion, ser du alle transaktioner");
+            lore.add("§8denne spiller har overført efter datoen.");
+            lore.add("");
+            lore.add("§7Beløb: " + EMERALD_FORMATTER.format(node.amount()) + " emeralder");
+            lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
+            lore.add("§7Transaktionstype: " + node.type().toString().toLowerCase());
+            if (node.extra() != null) {
+                lore.add("§7Ekstra: " + node.extra());
+            }
+            meta.setLore(lore);
+
+            item.setItemMeta(meta);
+        }
+
+        @Override
+        public void clickInspection(Player player, SingleTransactionNode node) {
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false)
+                    .filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.time())))
+                    .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equalsIgnoreCase(node.toUserName())));
+
+            new EngineGui<>(newQuery, this.context, this.settings)
+                    .open(player);
+        }
+    }
+
+    private record GroupedTransactionVisitor(QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode> context, EngineSettingsGui settings) implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
+
+        @Override
+        public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item, int index) {
+            SkullMeta meta = (SkullMeta) item.getItemMeta();
+
+            Function<SingleTransactionNode, String> targetFunction;
+            switch (node.bound()) {
+                case TO:
+                    targetFunction = SingleTransactionNode::fromUserName;
+                    String toPlayer = node.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
+
+                    meta.setOwner(toPlayer);
+                    meta.setDisplayName("§7Til §e" + toPlayer + " §8(§e" + index + "§8) (Klik for inspektion)");
+                    break;
+                case FROM:
+                    targetFunction = SingleTransactionNode::toUserName;
+                    String fromPlayer = node.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
+
+                    meta.setOwner(fromPlayer);
+                    meta.setDisplayName("§7Fra §e" + fromPlayer + " §8(§e" + index + "§8) (Klik for inspektion)");
+                    break;
+                default:
+                    throw new IllegalStateException();
+            }
+
+            List<String> lore = new ArrayList<>();
+            lore.add("§7" + EMERALD_FORMATTER.format(node.getAmount()) + " emeralder i alt");
+            lore.add("§7" + node.size() + " transaktioner i alt");
+
+            Optional<SingleTransactionNode> highestOptional = node.getHighestTransaction();
+            if (highestOptional.isPresent()) {
+                SingleTransactionNode highest = highestOptional.get();
+                lore.add("");
+                lore.add("§8Højeste transaktion:");
+                lore.add("§7Af " + targetFunction.apply(highest) + ": " + EMERALD_FORMATTER.format(highest.amount()) + " emeralder");
+                lore.add("§7Overført d. " + TIME_FORMATTER.format(highest.time()));
+            }
+
+            Optional<SingleTransactionNode> latestOptional = node.getLatestTransaction();
+            if (latestOptional.isPresent()) {
+                SingleTransactionNode latest = latestOptional.get();
+                lore.add("");
+                lore.add("§8Seneste transaktion:");
+                lore.add("§7Af " + targetFunction.apply(latest) + ": " + EMERALD_FORMATTER.format(latest.amount()) + " emeralder");
+                lore.add("§7Overført d. " + TIME_FORMATTER.format(latest.time()));
+            }
+
+            Optional<SingleTransactionNode> oldestOptional = node.getOldestTransaction();
+            if (oldestOptional.isPresent()) {
+                SingleTransactionNode oldest = oldestOptional.get();
+                lore.add("");
+                lore.add("§8Ældste transaktion:");
+                lore.add("§7Af " + targetFunction.apply(oldest) + ": " + EMERALD_FORMATTER.format(oldest.amount()) + " emeralder");
+                lore.add("§7Overført d. " + TIME_FORMATTER.format(oldest.time()));
+            }
+
+            meta.setLore(lore);
+
+            item.setItemMeta(meta);
+        }
+
+        @Override
+        public void clickInspection(Player player, TransactionNode.GroupedTransactionNode node) {
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.query().initialNodes());
+
+            new EngineGui<>(
+                    new EngineQuery<>(
+                            Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery), true
+                    ),
+                    this.context,
+                    this.settings
+            )
+            .open(player);
+        }
     }
 }
