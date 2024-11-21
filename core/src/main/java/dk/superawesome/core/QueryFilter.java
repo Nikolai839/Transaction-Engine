@@ -23,7 +23,7 @@ public interface QueryFilter<N extends Node> {
         public static FilterType<String, SingleTransactionNode> TO_USER = new FilterType<>("to_user", SingleTransactionNode::toUserName);
     }
 
-    class FilterType<T, N extends Node> implements Identifiable {
+    class FilterType<T, N extends Node> implements Identifiable<String> {
 
         private final String identifier;
         private final Function<N, T> converter;

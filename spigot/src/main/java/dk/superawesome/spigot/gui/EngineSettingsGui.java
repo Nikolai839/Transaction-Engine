@@ -28,10 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.*;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -42,11 +39,11 @@ public class EngineSettingsGui {
 
     public static void loadToCache() {
         try {
-            Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester()).build());
+            Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
+                    .build());
         } catch (Exception ex) {
             Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
         }
-        Bukkit.getLogger().info("!!!!!!!! Loaded to cache!");
     }
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
@@ -289,14 +286,13 @@ public class EngineSettingsGui {
                     .setLine(2, "Vælg max antal")
                     .setLine(3, this.groupUserNamesMax != -1 ? String.valueOf(this.groupUserNamesMax) : "")
                     .setHandler((player, result) -> {
-                        updateGroupItem();
-
                         String intervalString = result.getLine(1);
                         String maxString = result.getLine(3);
                         if (intervalString.isEmpty() && maxString.isEmpty()) {
                             groupUserNamesMax = -1;
                             groupUserNamesMaxBetween = -1;
                             groupUserNamesMaxBetweenUnit = null;
+                            updateGroupItem();
                             return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                         }
 
@@ -362,6 +358,8 @@ public class EngineSettingsGui {
                             groupUserNamesMaxBetween = -1;
                             groupUserNamesMaxBetweenUnit = null;
                         }
+
+                        updateGroupItem();
 
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                     })
@@ -854,6 +852,7 @@ public class EngineSettingsGui {
             Consumer<BukkitRunnable> callback = task -> {
                 // make sure the player has not closed the inventory while loading
                 if (!gui.isTaskCancelled()) {
+                    player.closeInventory();
                     task.runTask(TransactionEngine.instance);
                 }
             };
@@ -922,7 +921,7 @@ public class EngineSettingsGui {
                     throw new IllegalStateException();
                 }
 
-                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode>> operators = new ArrayList<>();
+                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode, ?>> operators = new ArrayList<>();
                 if (this.groupUserNamesMax != -1) {
                     operators.add(PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax));
                 }
@@ -931,12 +930,12 @@ public class EngineSettingsGui {
                 }
 
                 finalQuery = (EngineQuery<T>) query.transform(
-                        PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>groupBy(
-                                func, Object::equals,
-                                () -> PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
+                        PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode, Object, String>groupBy(
+                                () -> PostQueryTransformer.GroupBy.GroupOperator.mix(operators, PostQueryTransformer.GroupBy.NodeGroupContext.ContextFactory.simple(func)),
                                 new PostQueryTransformer.GroupBy.GroupCollector<>() {
+
                                     @Override
-                                    public TransactionNode.GroupedTransactionNode collect(List<SingleTransactionNode> nodes) {
+                                    public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
                                         return new TransactionNode.GroupedTransactionNode(nodes, bound);
                                     }
 

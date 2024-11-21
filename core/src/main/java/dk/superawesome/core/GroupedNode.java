@@ -1,7 +1,5 @@
 package dk.superawesome.core;
 
-import java.util.List;
-
 public interface GroupedNode<N extends Node> extends Node {
 
     default boolean isGrouped() {
@@ -12,5 +10,5 @@ public interface GroupedNode<N extends Node> extends Node {
         return getNodes().size();
     }
 
-    List<N> getNodes();
+    java.util.Collection<N> getNodes();
 }

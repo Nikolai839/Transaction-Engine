@@ -1,6 +1,6 @@
 package dk.superawesome.core;
 
-public interface Identifiable {
+public interface Identifiable<T> {
 
-    String getIdentifier();
+    T getIdentifier();
 }

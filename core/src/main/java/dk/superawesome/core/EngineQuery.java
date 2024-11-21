@@ -5,6 +5,7 @@ import dk.superawesome.core.exceptions.RequestException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -16,11 +17,12 @@ public class EngineQuery<N extends Node> {
             while (set.next()) {
                 N node = factory.createNode(set);
                 nodes.add(node);
-
             }
 
             cache.getCachedNodes().addAll(nodes);
             cache.markCached();
+
+            set.close();
 
             return new EngineQuery<>(nodes);
         } catch (SQLException ex) {
@@ -31,12 +33,12 @@ public class EngineQuery<N extends Node> {
     private final List<Node> initialNodes = new ArrayList<>();
     private final List<N> nodes = new ArrayList<>();
 
-    public EngineQuery(List<N> nodes) {
+    public EngineQuery(Collection<N> nodes) {
         this.nodes.addAll(nodes);
         this.initialNodes.addAll(nodes);
     }
 
-    public EngineQuery(List<N> filteredNodes, List<Node> initialNodes) {
+    public EngineQuery(Collection<N> filteredNodes, Collection<Node> initialNodes) {
         this.nodes.addAll(filteredNodes);
         this.initialNodes.addAll(initialNodes);
     }

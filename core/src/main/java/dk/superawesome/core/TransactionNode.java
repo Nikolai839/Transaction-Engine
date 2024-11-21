@@ -1,10 +1,7 @@
 package dk.superawesome.core;
 
 import java.time.chrono.ChronoZonedDateTime;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 
 public interface TransactionNode extends Node {
@@ -13,14 +10,14 @@ public interface TransactionNode extends Node {
         PAY, CHESTSHOP, SERVERSTORE, AFGIFT, GIVE, TAKE, AREASHOP, SERVERMARKET
     }
 
-    record GroupedTransactionNode(List<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+    record GroupedTransactionNode(java.util.Collection<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
 
         public enum Bound {
             FROM, TO
         }
 
         @Override
-        public List<SingleTransactionNode> getNodes() {
+        public java.util.Collection<SingleTransactionNode> getNodes() {
             return this.nodes;
         }
 
