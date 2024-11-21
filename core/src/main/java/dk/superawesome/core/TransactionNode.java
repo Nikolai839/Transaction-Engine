@@ -43,6 +43,7 @@ public interface TransactionNode extends Node {
             static {
                 SORTINGS.put(SortingMethod.BY_TIME, Visitor::sortByTime);
                 SORTINGS.put(SortingMethod.BY_AMOUNT, Visitor::sortByAmount);
+                SORTINGS.put(SortingMethod.GROUPED_AMOUNT, Visitor::sortByGroupedAmount);
             }
 
             @Override
@@ -53,6 +54,11 @@ public interface TransactionNode extends Node {
             @Override
             public PostQueryTransformer.SortBy<GroupedTransactionNode> sortByAmount() {
                 return PostQueryTransformer.SortBy.sortByGroup(GroupedTransactionNode::nodes, SingleTransactionNode::amount, Double::sum, Double::compareTo);
+            }
+
+            @Override
+            public PostQueryTransformer.SortBy<GroupedTransactionNode> sortByGroupedAmount() {
+                return PostQueryTransformer.SortBy.sortBy(GroupedNode::size, Integer::compare);
             }
         }
     }

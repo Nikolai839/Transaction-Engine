@@ -374,8 +374,13 @@ public class EngineSettingsGui {
                 this.groupUserNamesMaxBetweenUnit = null;
                 this.groupUserNamesMaxBetween = -1;
                 this.groupUserNamesMax = -1;
+
+                if (this.sortingMethod.isGrouped()) {
+                    this.sortingMethod = SortingMethod.BY_TIME;
+                }
             }
 
+            updateSortingItem();
             updateGroupItem();
         }
     }
@@ -801,6 +806,9 @@ public class EngineSettingsGui {
 
         sortingItemLore.add(Component.text("§7Sorteres efter: §8(Venstreklik)"));
         for (SortingMethod method : SortingMethod.values()) {
+            if (method.isGrouped() && this.groupBy.equals(GroupBy.NONE)) {
+                continue;
+            }
             String colour = this.sortingMethod == method ? "§e" : "§8";
             sortingItemLore.add(Component.text(colour + " - " + method.getName()));
         }
@@ -905,7 +913,7 @@ public class EngineSettingsGui {
             }
 
             Node.Collection collection = Node.Collection.SINGLE;
-            EngineQuery<T> finalQuery;
+            EngineQuery<? extends TransactionNode> finalQuery;
             if (!this.groupBy.equals(GroupBy.NONE)) {
                 collection = Node.Collection.GROUPED;
 
@@ -921,7 +929,7 @@ public class EngineSettingsGui {
                     throw new IllegalStateException();
                 }
 
-                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode, ?>> operators = new ArrayList<>();
+                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode>> operators = new ArrayList<>();
                 if (this.groupUserNamesMax != -1) {
                     operators.add(PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax));
                 }
@@ -929,10 +937,9 @@ public class EngineSettingsGui {
                     operators.add(PostQueryTransformer.GroupBy.GroupOperator.maxBetween(SingleTransactionNode::time, this.groupUserNamesMaxBetween, this.groupUserNamesMaxBetweenUnit));
                 }
 
-                finalQuery = (EngineQuery<T>) query.transform(
-                        PostQueryTransformer.GroupBy.<SingleTransactionNode, TransactionNode.GroupedTransactionNode, Object, String>groupBy(
-                                () -> PostQueryTransformer.GroupBy.GroupOperator.mix(operators, PostQueryTransformer.GroupBy.NodeGroupContext.ContextFactory.simple(func)),
-                                new PostQueryTransformer.GroupBy.GroupCollector<>() {
+                finalQuery = query.transform(
+                        PostQueryTransformer.GroupBy.groupBy(PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
+                                new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>() {
 
                                     @Override
                                     public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
@@ -943,9 +950,10 @@ public class EngineSettingsGui {
                                     public String getKey(SingleTransactionNode node) {
                                         return func.apply(node);
                                     }
-                                }));
+                                }
+                        ));
             } else {
-                finalQuery = (EngineQuery<T>) query;
+                finalQuery = query;
             }
 
             finalQuery = Engine.doTransformation(collection, this.sortingMethod, finalQuery);
