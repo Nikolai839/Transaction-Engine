@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -13,7 +14,7 @@ public class EngineQuery<N extends Node> {
 
     public static <N extends Node> EngineQuery<N> create(ResultSet set, NodeFactory<N> factory, EngineCache<N> cache) throws RequestException {
         try {
-            List<N> nodes = new ArrayList<>();
+            List<N> nodes = new LinkedList<>();
             while (set.next()) {
                 N node = factory.createNode(set);
                 nodes.add(node);
@@ -30,8 +31,8 @@ public class EngineQuery<N extends Node> {
         }
     }
 
-    private final List<Node> initialNodes = new ArrayList<>();
-    private final List<N> nodes = new ArrayList<>();
+    private final List<Node> initialNodes = new LinkedList<>();
+    private final List<N> nodes = new LinkedList<>();
 
     public EngineQuery(Collection<N> nodes) {
         this.nodes.addAll(nodes);

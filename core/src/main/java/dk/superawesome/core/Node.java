@@ -33,11 +33,11 @@ public interface Node {
             return (PostQueryTransformer.SortBy.SortVisitable<N, V>) this.comparatorSupplier.get();
         }
 
-        static abstract private class RegistryNodeComparator<N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> implements PostQueryTransformer.SortBy.SortVisitable<N, V> {
+        static abstract private class RegistryNodeVisitable<N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> implements PostQueryTransformer.SortBy.SortVisitable<N, V> {
 
             private final EnumMap<SortingMethod, Function<V, PostQueryTransformer<N, N>>> registry;
 
-            private RegistryNodeComparator(EnumMap<SortingMethod, Function<V, PostQueryTransformer<N, N>>> registry) {
+            private RegistryNodeVisitable(EnumMap<SortingMethod, Function<V, PostQueryTransformer<N, N>>> registry) {
                 this.registry = registry;
             }
 
@@ -47,14 +47,14 @@ public interface Node {
             }
         }
 
-        static class SingleVisitable extends RegistryNodeComparator<SingleTransactionNode, SingleTransactionNode.Visitor> {
+        static class SingleVisitable extends RegistryNodeVisitable<SingleTransactionNode, SingleTransactionNode.Visitor> {
 
             private SingleVisitable() {
                 super(SingleTransactionNode.Visitor.SORTINGS);
             }
         }
 
-        static class GroupedVisitable extends RegistryNodeComparator<TransactionNode.GroupedTransactionNode, TransactionNode.GroupedTransactionNode.Visitor> {
+        static class GroupedVisitable extends RegistryNodeVisitable<TransactionNode.GroupedTransactionNode, TransactionNode.GroupedTransactionNode.Visitor> {
 
             private GroupedVisitable() {
                 super(TransactionNode.GroupedTransactionNode.Visitor.SORTINGS);
