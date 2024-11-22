@@ -40,8 +40,7 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
         try {
             return new SingleTransactionNode(
                     ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getTimestamp(timeKey).getTime()), ZoneOffset.UTC)
-                            .withZoneSameInstant(ZONE_ID)
-                            .plusHours(1),
+                            .withZoneSameInstant(ZONE_ID),
                     set.getDouble(amountKey),
                     TransactionNode.PayType.valueOf(set.getString(typeKey).toUpperCase()),
                     set.getString(extraKey),

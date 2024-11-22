@@ -23,7 +23,6 @@ import java.util.logging.Level;
 public class DatabaseController implements DatabaseExecutor<SingleTransactionNode> {
 
     private static final int MAX_POOL_SIZE = 10;
-    private static final int CONNECT_TIMEOUT = 60000;
 
     private final MariaDbPoolDataSource source = new MariaDbPoolDataSource();
     private boolean hasAppliedSettings;
@@ -75,7 +74,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     private void applySettings(DatabaseSettings settings) throws SQLException {
         this.source.setUser(settings.username());
         this.source.setPassword(settings.password());
-        this.source.setUrl("jdbc:mariadb://" +  settings.host() + ":" + settings.port() + "/" + settings.database() + "?connectTimeout=" + CONNECT_TIMEOUT + "&maxPoolSize=" + MAX_POOL_SIZE);
+        this.source.setUrl("jdbc:mariadb://" +  settings.host() + ":" + settings.port() + "/" + settings.database() + "?maxPoolSize=" + MAX_POOL_SIZE);
         this.hasAppliedSettings = true;
     }
 
@@ -98,7 +97,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
     public ResultSet runQuery(String sql, Object... values) throws SQLException {
         ResultSet rs = null;
         try (Connection conn = this.source.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            PreparedStatement stmt = conn.prepareStatement(sql, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
 
             for (int i = 0; i < values.length; i++) {
                 stmt.setObject(i + 1, values[i]);

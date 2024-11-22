@@ -467,6 +467,7 @@ public class EngineSettingsGui {
                     if (fromString.isEmpty() && toString.isEmpty()) {
                         this.timeFrom = null;
                         this.timeTo = null;
+                        updateTimeItem();
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                     }
 

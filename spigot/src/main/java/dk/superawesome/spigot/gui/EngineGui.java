@@ -175,7 +175,7 @@ public class EngineGui<N extends TransactionNode> {
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
             SkullMeta meta = (SkullMeta) item.getItemMeta();
             meta.setOwner(node.toUserName());
-            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8) (Klik for inspektion)");
+            meta.setDisplayName("§e" + node.fromUserName() + "§7 -> §e" + node.toUserName() + " §8(§e" + index + "§8) (Klik)");
 
             List<String> lore = new ArrayList<>();
             lore.add("§8Ved inspektion, ser du alle transaktioner");
@@ -209,6 +209,7 @@ public class EngineGui<N extends TransactionNode> {
         public void applyToItem(TransactionNode.GroupedTransactionNode node, ItemStack item, int index) {
             SkullMeta meta = (SkullMeta) item.getItemMeta();
 
+            String other;
             Function<SingleTransactionNode, String> targetFunction;
             switch (node.bound()) {
                 case TO:
@@ -216,6 +217,7 @@ public class EngineGui<N extends TransactionNode> {
                     String toPlayer = node.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
 
                     meta.setOwner(toPlayer);
+                    other = "Fra";
                     meta.setDisplayName("§7Til §e" + toPlayer + " §8(§e" + index + "§8) (Klik for inspektion)");
                     break;
                 case FROM:
@@ -223,6 +225,7 @@ public class EngineGui<N extends TransactionNode> {
                     String fromPlayer = node.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
 
                     meta.setOwner(fromPlayer);
+                    other = "Til";
                     meta.setDisplayName("§7Fra §e" + fromPlayer + " §8(§e" + index + "§8) (Klik for inspektion)");
                     break;
                 default:
@@ -238,7 +241,7 @@ public class EngineGui<N extends TransactionNode> {
                 SingleTransactionNode highest = highestOptional.get();
                 lore.add("");
                 lore.add("§8Højeste transaktion:");
-                lore.add("§7Af " + targetFunction.apply(highest) + ": " + EMERALD_FORMATTER.format(highest.amount()) + " emeralder");
+                lore.add("§7" + other + " " + targetFunction.apply(highest) + ": " + EMERALD_FORMATTER.format(highest.amount()) + " emeralder");
                 lore.add("§7Overført d. " + TIME_FORMATTER.format(highest.time()));
             }
 
@@ -247,7 +250,7 @@ public class EngineGui<N extends TransactionNode> {
                 SingleTransactionNode latest = latestOptional.get();
                 lore.add("");
                 lore.add("§8Seneste transaktion:");
-                lore.add("§7Af " + targetFunction.apply(latest) + ": " + EMERALD_FORMATTER.format(latest.amount()) + " emeralder");
+                lore.add("§7" + other + " " + targetFunction.apply(latest) + ": " + EMERALD_FORMATTER.format(latest.amount()) + " emeralder");
                 lore.add("§7Overført d. " + TIME_FORMATTER.format(latest.time()));
             }
 
@@ -256,7 +259,7 @@ public class EngineGui<N extends TransactionNode> {
                 SingleTransactionNode oldest = oldestOptional.get();
                 lore.add("");
                 lore.add("§8Ældste transaktion:");
-                lore.add("§7Af " + targetFunction.apply(oldest) + ": " + EMERALD_FORMATTER.format(oldest.amount()) + " emeralder");
+                lore.add("§7" + other + " " + targetFunction.apply(oldest) + ": " + EMERALD_FORMATTER.format(oldest.amount()) + " emeralder");
                 lore.add("§7Overført d. " + TIME_FORMATTER.format(oldest.time()));
             }
 
