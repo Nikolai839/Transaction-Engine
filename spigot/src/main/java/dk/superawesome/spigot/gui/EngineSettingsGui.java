@@ -121,7 +121,12 @@ public class EngineSettingsGui {
         if (event.getClick().isRightClick()) {
             this.sortHighestToLowest = !this.sortHighestToLowest;
         } else {
-            this.sortingMethod = SortingMethod.values()[(this.sortingMethod.ordinal() + 1) % SortingMethod.values().length];
+            List<SortingMethod> methods = new ArrayList<>(Arrays.asList(SortingMethod.values()));
+            if (this.groupBy.equals(GroupBy.NONE)) {
+                methods.removeIf(SortingMethod::isGrouped);
+            }
+
+            this.sortingMethod = methods.get((this.sortingMethod.ordinal() + 1) % methods.size());
         }
 
         updateSortingItem();
