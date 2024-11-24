@@ -867,7 +867,7 @@ public class EngineSettingsGui {
     private void updateTraceModeItem() {
         this.gui.updateItem(41, new GuiItem(ItemBuilder.from(Material.LEATHER_BOOTS)
                 .name(Component.text("§6Sporingstilstand"))
-                .lore(Component.text((this.traceModeEnabled ? "§7Slået til" : "§7Slået fra") + " §8(Klik) §c(Kommer snart!)"))
+                .lore(Component.text((this.traceModeEnabled ? "§7Slået til" : "§7Slået fra") + " §8(Klik)"))
                 .glow(this.traceModeEnabled)
                 .flags(ItemFlag.HIDE_ATTRIBUTES)
                 .build(), __ -> configureTraceMode()));
@@ -949,7 +949,7 @@ public class EngineSettingsGui {
         }
         groupItemLore.add(Component.empty());
 
-        groupItemLore.add(Component.text("§7Valgt gruppering: §7(Klik)"));
+        groupItemLore.add(Component.text("§7Valgt gruppering: §8(Klik)"));
         for (GroupBy groupBy : GroupBy.values()){
             String colour = this.groupBy == groupBy ? "§e" : "§8";
             groupItemLore.add(Component.text(colour + " - " + groupBy.getName()));
@@ -1029,7 +1029,7 @@ public class EngineSettingsGui {
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
             if (this.traceModeEnabled) {
-                // TODO
+                query = Engine.trace(query);
             }
 
             Node.Collection collection = Node.Collection.SINGLE;

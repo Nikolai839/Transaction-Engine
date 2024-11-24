@@ -6,14 +6,23 @@ import java.util.function.Function;
 
 public interface TransactionNode extends Node {
 
+    String CONSOLE = "CONSOLE";
+
     enum PayType {
         PAY, CHESTSHOP, SERVERSTORE, AFGIFT, GIVE, TAKE, AREASHOP, SERVERMARKET
     }
+
+    boolean isTraced();
 
     record GroupedTransactionNode(java.util.Collection<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
 
         public enum Bound {
             FROM, TO
+        }
+
+        @Override
+        public boolean isTraced() {
+            return false;
         }
 
         @Override

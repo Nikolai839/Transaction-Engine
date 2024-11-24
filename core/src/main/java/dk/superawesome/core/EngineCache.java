@@ -1,6 +1,7 @@
 package dk.superawesome.core;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 public interface EngineCache<N extends Node> {
@@ -9,7 +10,7 @@ public interface EngineCache<N extends Node> {
 
     boolean isCacheEmpty();
 
-    Set<N> getCachedNodes();
+    List<N> getCachedNodes();
 
     void markCached();
 }

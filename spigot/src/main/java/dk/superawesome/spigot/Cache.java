@@ -4,13 +4,12 @@ import dk.superawesome.core.EngineCache;
 import dk.superawesome.core.SingleTransactionNode;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class Cache implements EngineCache<SingleTransactionNode> {
 
     private LocalDateTime lastCache;
-    private final Set<SingleTransactionNode> cache = new HashSet<>();
+    private final List<SingleTransactionNode> cache = new LinkedList<>();
 
     @Override
     public LocalDateTime latestCacheTime() {
@@ -23,7 +22,7 @@ public class Cache implements EngineCache<SingleTransactionNode> {
     }
 
     @Override
-    public Set<SingleTransactionNode> getCachedNodes() {
+    public List<SingleTransactionNode> getCachedNodes() {
         return this.cache;
     }
 

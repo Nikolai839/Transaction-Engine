@@ -19,7 +19,6 @@ import java.util.function.Function;
 
 public class EngineGui<N extends TransactionNode> {
 
-    private static final String CONSOLE = "CONSOLE";
     private static final DecimalFormat EMERALD_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.GERMANY));
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
@@ -93,7 +92,8 @@ public class EngineGui<N extends TransactionNode> {
         if (node.isGrouped()) {
             return this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
         } else {
-            return this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings);
+            boolean isTraced = node.isTraced();
+            return this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings, isTraced);
         }
     }
 
@@ -170,7 +170,7 @@ public class EngineGui<N extends TransactionNode> {
         void clickInspection(Player player, T node);
     }
 
-    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode>  {
+    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
 
         @Override
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
@@ -191,13 +191,26 @@ public class EngineGui<N extends TransactionNode> {
                 lore.add("§7Ekstra: " + node.extra());
             }
 
+            if (isTraced) {
+                lore.add("");
+                lore.add("§8Sporet efter:");
+
+                SingleTransactionNode.Traced traced = (SingleTransactionNode.Traced) node;
+                if (!node.fromUserName().equals(TransactionNode.CONSOLE)) {
+                    lore.add("§7" + node.fromUserName() + ": " + (traced.fromUserTrace() > 0 ? "+" : "") + EMERALD_FORMATTER.format(traced.fromUserTrace()) + " emeralder");
+                }
+                if (!node.toUserName().equals(TransactionNode.CONSOLE)) {
+                    lore.add("§7" + node.toUserName() + ": " + (traced.toUserTrace() > 0 ? "+" : "") + EMERALD_FORMATTER.format(traced.toUserTrace()) + " emeralder");
+                }
+            }
+
             List<String> newBalanceLore = new ArrayList<>();
-            if (!node.fromUserName().equals(CONSOLE) && node.fromUserPreBalance() != -1) {
+            if (!node.fromUserName().equals(TransactionNode.CONSOLE) && node.fromUserPreBalance() != -1) {
                 double fromPlayerNewBalance = node.fromUserPreBalance() - node.amount();
                 newBalanceLore.add("§7" + node.fromUserName() + ": " + EMERALD_FORMATTER.format(fromPlayerNewBalance) + " emeralder");
             }
 
-            if (!node.toUserName().equals(CONSOLE) && node.toUserPreBalance() != -1) {
+            if (!node.toUserName().equals(TransactionNode.CONSOLE) && node.toUserPreBalance() != -1) {
                 double toPlayerNewBalance = node.toUserPreBalance() + node.amount();
                 newBalanceLore.add("§7" + node.toUserName() + ": " + EMERALD_FORMATTER.format(toPlayerNewBalance) + " emeralder");
             }

@@ -1,9 +1,6 @@
 package dk.superawesome.spigot;
 
-import dk.superawesome.core.EngineCache;
-import dk.superawesome.core.EngineQuery;
-import dk.superawesome.core.SingleTransactionNode;
-import dk.superawesome.core.TransactionNodeFactory;
+import dk.superawesome.core.*;
 import dk.superawesome.core.db.DatabaseExecutor;
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;
@@ -17,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.logging.Level;
 
@@ -45,25 +43,30 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             @Override
             public String getQuery() {
                 return """
-                        SELECT l.created, l.amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
+                        SELECT l.created, SUM(l.amount) AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.fromplayer
                         LEFT JOIN players p2 ON p2.id = l.toplayer
                         WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL
-                        ORDER BY created DESC
+                        GROUP BY l.created
+                        ORDER BY l.created DESC
                        """;
             }
 
             @Override
-            public String getQuery(LocalDateTime dateTime) {
+            public String getQuery(EngineCache<? extends Node> cache) {
+                LocalDateTime dateTime = cache.latestCacheTime();
                 String time = dateTime.getYear() + "-" + dateTime.getMonthValue() + "-" + dateTime.getDayOfMonth() + " " + dateTime.getHour() + ":" + dateTime.getMinute() + ":" + dateTime.getSecond();
+
+                cache.markCached();
                 return String.format("""
-                        SELECT l.created, l.amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
+                        SELECT l.created, SUM(l.amount) AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
                         LEFT JOIN players p1 ON p1.id = l.fromplayer
                         LEFT JOIN players p2 ON p2.id = l.toplayer
                         WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND l.created > CAST('%s' AS DATETIME) - INTERVAL 1 MINUTE
-                        ORDER BY created DESC
+                        GROUP BY l.created
+                        ORDER BY l.created DESC
                         """, time);
             }
         };

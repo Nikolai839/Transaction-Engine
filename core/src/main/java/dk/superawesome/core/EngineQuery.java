@@ -4,10 +4,7 @@ import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class EngineQuery<N extends Node> {
@@ -21,7 +18,6 @@ public class EngineQuery<N extends Node> {
             }
 
             cache.getCachedNodes().addAll(nodes);
-            cache.markCached();
 
             set.close();
 

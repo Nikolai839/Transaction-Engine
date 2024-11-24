@@ -2,12 +2,85 @@ package dk.superawesome.core;
 
 import java.time.ZonedDateTime;
 import java.time.chrono.ChronoZonedDateTime;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.function.Function;
 
-public record SingleTransactionNode(ZonedDateTime time, double amount, String fromUserName, String toUserName, double fromUserPreBalance, double toUserPreBalance, TransactionNode.PayType type, String extra) implements TransactionNode {
+public interface SingleTransactionNode extends TransactionNode {
 
-    public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<SingleTransactionNode> {
+    ZonedDateTime time();
+
+    double amount();
+
+    String fromUserName();
+
+    String toUserName();
+
+    double fromUserPreBalance();
+
+    double toUserPreBalance();
+
+    PayType type();
+
+    String extra();
+
+    record Unit(ZonedDateTime time, double amount, String fromUserName, String toUserName, double fromUserPreBalance, double toUserPreBalance, TransactionNode.PayType type, String extra) implements SingleTransactionNode {
+
+        @Override
+        public boolean isTraced() {
+            return false;
+        }
+    }
+
+    record Traced(SingleTransactionNode unit, double fromUserTrace, double toUserTrace) implements SingleTransactionNode {
+
+        @Override
+        public boolean isTraced() {
+            return true;
+        }
+
+        @Override
+        public ZonedDateTime time() {
+            return this.unit.time();
+        }
+
+        @Override
+        public double amount() {
+            return this.unit.amount();
+        }
+
+        @Override
+        public String fromUserName() {
+            return this.unit.fromUserName();
+        }
+
+        @Override
+        public String toUserName() {
+            return this.unit.toUserName();
+        }
+
+        @Override
+        public double fromUserPreBalance() {
+            return this.unit.fromUserPreBalance();
+        }
+
+        @Override
+        public double toUserPreBalance() {
+            return this.unit.toUserPreBalance();
+        }
+
+        @Override
+        public PayType type() {
+            return this.unit.type();
+        }
+
+        @Override
+        public String extra() {
+            return this.unit.extra();
+        }
+    }
+
+    class Visitor implements PostQueryTransformer.SortBy.SortVisitor<SingleTransactionNode> {
 
         public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<SingleTransactionNode, SingleTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);
         static {

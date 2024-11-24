@@ -5,8 +5,10 @@ import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.*;
-import java.util.Date;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 
 public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode> {
 
@@ -44,7 +46,7 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
     @Override
     public SingleTransactionNode createNode(ResultSet set) throws RequestException {
         try {
-            return new SingleTransactionNode(
+            return new SingleTransactionNode.Unit(
                     ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getTimestamp(timeKey).getTime()), ZoneOffset.UTC)
                             .withZoneSameInstant(ZONE_ID),
                     set.getDouble(amountKey),
