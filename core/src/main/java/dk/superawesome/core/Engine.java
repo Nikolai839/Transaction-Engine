@@ -12,9 +12,9 @@ public class Engine {
                 return query(request);
             }
 
-            EngineQuery<N> query = new EngineQuery<>(new ArrayList<>(request.getCache().getCachedNodes()));
+            EngineQuery<N> query = new EngineQuery<>(request.getCache().getCachedNodes());
             query.addNodes(
-                    request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().toQueryAfter(request.getCache().latestCacheTime()))
+                    request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery(request.getCache().latestCacheTime()))
                             .nodes()
             );
 
@@ -26,7 +26,7 @@ public class Engine {
 
     public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request) throws RequestException {
         try {
-            return request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().toQuery())
+            return request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery())
                     .filter(request);
         } catch (Exception ex) {
             throw new RequestException(ex);

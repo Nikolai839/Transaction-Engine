@@ -39,7 +39,7 @@ public class EngineSettingsGui {
 
     public static void loadToCache() {
         try {
-            Engine.query(EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
+            Engine.query(TransactionRequestBuilder.builder(CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
                     .build());
         } catch (Exception ex) {
             Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
@@ -111,6 +111,50 @@ public class EngineSettingsGui {
 
     public SortingMethod getSortingMethod() {
         return this.sortingMethod;
+    }
+
+    public double getAmountTo() {
+        return this.amountTo;
+    }
+
+    public double getAmountFrom() {
+        return this.amountFrom;
+    }
+
+    public ZonedDateTime getTimeTo() {
+        return this.timeTo;
+    }
+
+    public ZonedDateTime getTimeFrom() {
+        return this.timeFrom;
+    }
+
+    public List<TransactionNode.PayType> getExtraPayTypes() {
+        return this.extraTypes;
+    }
+
+    public List<TransactionNode.PayType> getIgnorePayTypes() {
+        return this.ignoreTypes;
+    }
+
+    public TransactionNode.PayType getPayType() {
+        return this.type;
+    }
+
+    public List<String> getToUserNames() {
+        return this.toUserNames;
+    }
+
+    public List<String> getFromUserNames() {
+        return this.fromUserNames;
+    }
+
+    public GroupBy getGroupBy() {
+        return this.groupBy;
+    }
+
+    public boolean isSortHighestToLowest() {
+        return this.sortHighestToLowest;
     }
 
     public void open(Player player) {
@@ -868,6 +912,13 @@ public class EngineSettingsGui {
                 if (!gui.isTaskCancelled()) {
                     player.closeInventory();
                     task.runTask(TransactionEngine.instance);
+
+                    Bukkit.getScheduler().runTask(TransactionEngine.instance, () -> {
+                        if (player.getOpenInventory().getTopInventory() == null) {
+                            // the request returned an empty query, open the settings gui again
+                            open(player);
+                        }
+                    });
                 }
             };
 
@@ -879,19 +930,20 @@ public class EngineSettingsGui {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private <T extends TransactionNode> void openEngineGuiAsync(Player player, Consumer<BukkitRunnable> callback) {
+    private void openEngineGuiAsync(Player player, Consumer<BukkitRunnable> callback) {
         try {
             DatabaseController controller = TransactionEngine.instance.getDatabaseController();
-            TransactionRequestBuilder builder = EngineRequest.Builder.makeRequest(TransactionRequestBuilder.class, CACHE, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
+            TransactionRequestBuilder<EngineRequest.RequestBuilder<SingleTransactionNode>, EngineRequest<SingleTransactionNode>> builder =
+                    TransactionRequestBuilder.builder(CACHE, TransactionEngine.instance.getSettings(), controller, controller.getRequester());
 
             builder.to(toUserNames.toArray(String[]::new));
             builder.from(fromUserNames.toArray(String[]::new));
-            if (this.amountFrom != 0) {
+
+            if (this.amountFrom != -1) {
                 builder.from(this.amountFrom);
             }
-            if (this.amountTo != 0) {
-                builder.from(this.amountTo);
+            if (this.amountTo != -1) {
+                builder.to(this.amountTo);
             }
             if (this.timeFrom != null) {
                 builder.from(this.timeFrom);
@@ -913,7 +965,7 @@ public class EngineSettingsGui {
                 }
             }
 
-            EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
+            EngineQuery<SingleTransactionNode> query = Engine.query(builder.build());
             if (this.traceModeEnabled) {
                 // TODO
             }
@@ -981,7 +1033,7 @@ public class EngineSettingsGui {
         }
     }
 
-    private enum GroupBy {
+    public enum GroupBy {
         NONE("ingen"), TO_USER("til-spiller"), FROM_USER("fra-spiller");
 
         private final String name;

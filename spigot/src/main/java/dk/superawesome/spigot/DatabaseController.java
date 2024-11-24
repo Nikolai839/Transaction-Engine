@@ -41,7 +41,7 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
 
         this.requester = new Requester() {
             @Override
-            public String toQuery() {
+            public String getQuery() {
                 return """
                         SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
                         FROM ems_log l
@@ -53,8 +53,8 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             }
 
             @Override
-            public String toQueryAfter(LocalDateTime after) {
-                String time = after.getYear() + "-" + after.getMonthValue() + "-" + after.getDayOfMonth() + " " + after.getHour() + ":" + after.getMinute() + ":" + after.getSecond();
+            public String getQuery(LocalDateTime dateTime) {
+                String time = dateTime.getYear() + "-" + dateTime.getMonthValue() + "-" + dateTime.getDayOfMonth() + " " + dateTime.getHour() + ":" + dateTime.getMinute() + ":" + dateTime.getSecond();
                 return String.format("""
                         SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
                         FROM ems_log l

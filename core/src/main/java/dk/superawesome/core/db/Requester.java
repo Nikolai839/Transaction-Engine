@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 public interface Requester {
 
-    String toQuery();
+    String getQuery();
 
-    String toQueryAfter(LocalDateTime after);
+    String getQuery(LocalDateTime dateTime);
 }

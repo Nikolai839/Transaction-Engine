@@ -42,7 +42,7 @@ public class EngineGui<N extends TransactionNode> {
         this.context = new QueryContext<>(previousContext, query);
         this.settings = settings;
         this.gui = Gui.gui()
-                .title(Component.text("Transaktioner (" + query.size() + ")"))
+                .title(Component.text("Transaktioner (" + query.size() + (query.size() < query.initialNodes().size() ? "/" + query.initialNodes().size() : "") + ")"))
                 .rows(6)
                 .disableAllInteractions()
                 .create();
@@ -140,7 +140,7 @@ public class EngineGui<N extends TransactionNode> {
 
     @SuppressWarnings("unchecked")
     private <CN extends TransactionNode> void clickBack(Player player) {
-        new EngineGui<>((EngineQuery<CN>) this.context.previousContext().query(), (QueryContext<CN, N>) this.context.previousContext().previousContext(), this.settings)
+        new EngineGui<>((EngineQuery<CN>) this.context.previousContext().query(), this.context.previousContext().previousContext(), this.settings)
                 .open(player);
     }
 
@@ -180,6 +180,7 @@ public class EngineGui<N extends TransactionNode> {
             List<String> lore = new ArrayList<>();
             lore.add("§8Ved inspektion, ser du alle transaktioner");
             lore.add("§8denne spiller har overført efter datoen.");
+            lore.add("§8§o(Med de forrige filtre valgt)");
             lore.add("");
             lore.add("§7Beløb: " + EMERALD_FORMATTER.format(node.amount()) + " emeralder");
             lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
@@ -194,12 +195,47 @@ public class EngineGui<N extends TransactionNode> {
 
         @Override
         public void clickInspection(Player player, SingleTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(this.context.query(), false)
-                    .filter(QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(node.time())))
-                    .filter(QueryFilter.FilterTypes.FROM_USER.makeFilter(p -> p.equalsIgnoreCase(node.toUserName())));
+            EngineQuery<SingleTransactionNode> buffer = TransactionRequestBuilder.wrap(new EngineQuery<>(this.context.query(), false))
+                    .from(node.time())
+                    .from(node.toUserName())
+                    .build();
 
-            new EngineGui<>(newQuery, this.context, this.settings)
-                    .open(player);
+            TransactionRequestBuilder<EngineRequest.QueryWrapperBuilder<SingleTransactionNode>, EngineQuery<SingleTransactionNode>> newQueryBuilder = TransactionRequestBuilder.wrap(new EngineQuery<>(buffer.nodes()));
+            if (this.settings.getAmountFrom() != -1) {
+                newQueryBuilder.from(this.settings.getAmountFrom());
+            }
+
+            if (this.settings.getAmountTo() != -1) {
+                newQueryBuilder.to(this.settings.getAmountTo());
+            }
+
+            if (this.settings.getTimeTo() != null) {
+                newQueryBuilder.to(this.settings.getTimeTo());
+            }
+
+            if (!this.settings.getIgnorePayTypes().isEmpty()) {
+                newQueryBuilder.isNot(this.settings.getIgnorePayTypes().toArray(TransactionNode.PayType[]::new));
+            } else {
+                List<TransactionNode.PayType> types = new ArrayList<>(this.settings.getExtraPayTypes());
+                TransactionNode.PayType current = this.settings.getPayType();
+                if (current != null && !types.contains(current)) {
+                    types.add(current);
+                }
+
+                if (!types.isEmpty()) {
+                    newQueryBuilder.is(types.toArray(TransactionNode.PayType[]::new));
+                }
+            }
+
+            EngineQuery<SingleTransactionNode> query = Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
+            if (this.settings.isSortHighestToLowest()) {
+                query.transform(PostQueryTransformer.reversed());
+            }
+
+            new EngineGui<>(
+                    Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), query),
+                    this.context, this.settings
+            ).open(player);
         }
     }
 

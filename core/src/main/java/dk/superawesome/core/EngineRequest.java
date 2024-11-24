@@ -12,31 +12,48 @@ import java.util.stream.Collectors;
 
 public class EngineRequest<N extends Node> {
 
-    public static class Builder<N extends Node, B extends Builder<N, B>> {
+    public interface Builder<N extends Node, RESULT> {
 
-        @SuppressWarnings("unchecked")
-        public static <N extends Node, B extends Builder<N, B>> B makeRequest(Class<? extends Builder<N, B>> clazz, EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor executor, Requester requester) throws RequestSetupException {
-            try {
-                return (B) clazz.getDeclaredConstructor(EngineCache.class, DatabaseSettings.class, DatabaseExecutor.class, Requester.class)
-                        .newInstance(cache, settings, executor, requester);
-            } catch (InvocationTargetException | InstantiationException | IllegalAccessException | NoSuchMethodException e) {
-                throw new RequestSetupException();
-            }
-        }
+        void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter);
+
+        RESULT build();
+    }
+
+    public static class RequestBuilder<N extends Node> implements Builder<N, EngineRequest<N>> {
 
         protected final EngineRequest<N> request;
 
-        public Builder(EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
+        public RequestBuilder(EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
             this.request = new EngineRequest<>(cache, settings, executor, requester);
         }
 
-        public B addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
+        @Override
+        public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
             this.request.addFilter(type, filter);
-            return (B) this;
         }
 
+        @Override
         public EngineRequest<N> build() {
             return this.request;
+        }
+    }
+
+    public static class QueryWrapperBuilder<N extends Node> implements Builder<N, EngineQuery<N>> {
+
+        private final EngineQuery<N> query;
+
+        public QueryWrapperBuilder(EngineQuery<N> query) {
+            this.query = query;
+        }
+
+        @Override
+        public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
+            this.query.filter(filter);
+        }
+
+        @Override
+        public EngineQuery<N> build() {
+            return this.query;
         }
     }
 
