@@ -14,25 +14,31 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
 
     public static final String TIME = "time";
     public static final String AMOUNT = "amount";
-    public static final String PAY_TYPE = "pay_type";
-    public static final String EXTRA = "extra";
     public static final String FROM_USER = "from_user";
     public static final String TO_USER = "to_user";
+    public static final String FROM_USER_PRE_BALANCE = "from_user_pre_balance";
+    public static final String TO_USER_PRE_BALANCE = "to_user_pre_balance";
+    public static final String PAY_TYPE = "pay_type";
+    public static final String EXTRA = "extra";
 
     private final String timeKey;
     private final String amountKey;
-    private final String typeKey;
-    private final String extraKey;
     private final String fromUserKey;
     private final String toUserKey;
+    private final String fromUserPreBalanceKey;
+    private final String toUserPreBalanceKey;
+    private final String typeKey;
+    private final String extraKey;
 
     public TransactionNodeFactory(Settings settings) {
         this.timeKey = settings.get(TIME);
         this.amountKey = settings.get(AMOUNT);
-        this.typeKey = settings.get(PAY_TYPE);
-        this.extraKey = settings.get(EXTRA);
         this.fromUserKey = settings.get(FROM_USER);
         this.toUserKey = settings.get(TO_USER);
+        this.fromUserPreBalanceKey = settings.get(FROM_USER_PRE_BALANCE);
+        this.toUserPreBalanceKey = settings.get(TO_USER_PRE_BALANCE);
+        this.typeKey = settings.get(PAY_TYPE);
+        this.extraKey = settings.get(EXTRA);
     }
 
     @Override
@@ -42,10 +48,13 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
                     ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getTimestamp(timeKey).getTime()), ZoneOffset.UTC)
                             .withZoneSameInstant(ZONE_ID),
                     set.getDouble(amountKey),
-                    TransactionNode.PayType.valueOf(set.getString(typeKey).toUpperCase()),
-                    set.getString(extraKey),
                     set.getString(fromUserKey),
-                    set.getString(toUserKey));
+                    set.getString(toUserKey),
+                    set.getDouble(fromUserPreBalanceKey),
+                    set.getDouble(toUserPreBalanceKey),
+                    TransactionNode.PayType.valueOf(set.getString(typeKey).toUpperCase()),
+                    set.getString(extraKey)
+            );
         } catch (SQLException ex) {
             throw new RequestException(ex);
         }

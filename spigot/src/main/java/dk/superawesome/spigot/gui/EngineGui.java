@@ -19,6 +19,7 @@ import java.util.function.Function;
 
 public class EngineGui<N extends TransactionNode> {
 
+    private static final String CONSOLE = "CONSOLE";
     private static final DecimalFormat EMERALD_FORMATTER = new DecimalFormat("#,###.##", new DecimalFormatSymbols(Locale.GERMANY));
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
@@ -185,9 +186,28 @@ public class EngineGui<N extends TransactionNode> {
             lore.add("§7Beløb: " + EMERALD_FORMATTER.format(node.amount()) + " emeralder");
             lore.add("§7Tidspunkt: " + TIME_FORMATTER.format(node.time()));
             lore.add("§7Transaktionstype: " + node.type().toString().toLowerCase());
+
             if (node.extra() != null) {
                 lore.add("§7Ekstra: " + node.extra());
             }
+
+            List<String> newBalanceLore = new ArrayList<>();
+            if (!node.fromUserName().equals(CONSOLE) && node.fromUserPreBalance() != -1) {
+                double fromPlayerNewBalance = node.fromUserPreBalance() - node.amount();
+                newBalanceLore.add("§7" + node.fromUserName() + ": " + EMERALD_FORMATTER.format(fromPlayerNewBalance) + " emeralder");
+            }
+
+            if (!node.toUserName().equals(CONSOLE) && node.toUserPreBalance() != -1) {
+                double toPlayerNewBalance = node.toUserPreBalance() + node.amount();
+                newBalanceLore.add("§7" + node.toUserName() + ": " + EMERALD_FORMATTER.format(toPlayerNewBalance) + " emeralder");
+            }
+
+            if (!newBalanceLore.isEmpty()) {
+                lore.add("");
+                lore.add("§8Nye balancer:");
+                lore.addAll(newBalanceLore);
+            }
+
             meta.setLore(lore);
 
             item.setItemMeta(meta);

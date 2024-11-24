@@ -32,7 +32,7 @@ public class EngineQuery<N extends Node> {
     }
 
     private final List<Node> initialNodes = new LinkedList<>();
-    private final List<N> nodes = new LinkedList<>();
+    private List<N> nodes = new LinkedList<>();
 
     public EngineQuery(Collection<N> nodes) {
         this.nodes.addAll(nodes);
@@ -56,6 +56,11 @@ public class EngineQuery<N extends Node> {
 
     public EngineQuery<N> filter(QueryFilter<? super N> filter) {
         this.nodes.removeIf(Predicate.not(filter::test));
+        return this;
+    }
+
+    public EngineQuery<N> limit(int limit) {
+        this.nodes = this.nodes.subList(0, limit);
         return this;
     }
 

@@ -33,21 +33,23 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
         this.nodeFactory = new TransactionNodeFactory(new Settings.Mapped(new HashMap<>(){{
             put(TransactionNodeFactory.TIME, "created");
             put(TransactionNodeFactory.AMOUNT, "amount");
-            put(TransactionNodeFactory.PAY_TYPE, "paytype");
-            put(TransactionNodeFactory.EXTRA, "extra");
             put(TransactionNodeFactory.FROM_USER, "fromplayer");
             put(TransactionNodeFactory.TO_USER, "toplayer");
+            put(TransactionNodeFactory.FROM_USER_PRE_BALANCE, "fromplayer_pre_balance");
+            put(TransactionNodeFactory.TO_USER_PRE_BALANCE, "toplayer_pre_balance");
+            put(TransactionNodeFactory.PAY_TYPE, "paytype");
+            put(TransactionNodeFactory.EXTRA, "extra");
         }}));
 
         this.requester = new Requester() {
             @Override
             public String getQuery() {
                 return """
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
+                        SELECT l.created, l.amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
-                        LEFT JOIN players p1 ON p1.id = l.toplayer
-                        LEFT JOIN players p2 ON p2.id = l.fromplayer
-                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1
+                        LEFT JOIN players p1 ON p1.id = l.fromplayer
+                        LEFT JOIN players p2 ON p2.id = l.toplayer
+                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL
                         ORDER BY created DESC
                        """;
             }
@@ -56,11 +58,11 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             public String getQuery(LocalDateTime dateTime) {
                 String time = dateTime.getYear() + "-" + dateTime.getMonthValue() + "-" + dateTime.getDayOfMonth() + " " + dateTime.getHour() + ":" + dateTime.getMinute() + ":" + dateTime.getSecond();
                 return String.format("""
-                        SELECT p1.username as toplayer, p2.username as fromplayer, l.amount, l.created, l.paytype, l.extra
+                        SELECT l.created, l.amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
-                        LEFT JOIN players p1 ON p1.id = l.toplayer
-                        LEFT JOIN players p2 ON p2.id = l.fromplayer
-                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.id != -1 AND p2.id != -1 AND l.created > CAST('%s' AS DATETIME) - INTERVAL 1 MINUTE
+                        LEFT JOIN players p1 ON p1.id = l.fromplayer
+                        LEFT JOIN players p2 ON p2.id = l.toplayer
+                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND l.created > CAST('%s' AS DATETIME) - INTERVAL 1 MINUTE
                         ORDER BY created DESC
                         """, time);
             }

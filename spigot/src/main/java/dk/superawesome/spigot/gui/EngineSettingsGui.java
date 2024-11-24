@@ -38,12 +38,14 @@ public class EngineSettingsGui {
     private static final Cache CACHE = new Cache();
 
     public static void loadToCache() {
-        try {
-            Engine.query(TransactionRequestBuilder.builder(CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
-                    .build());
-        } catch (Exception ex) {
-            Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
-        }
+        Bukkit.getScheduler().runTaskAsynchronously(TransactionEngine.instance, () -> {
+            try {
+                Engine.query(TransactionRequestBuilder.builder(CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
+                        .build());
+            } catch (Exception ex) {
+                Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
+            }
+        });
     }
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
@@ -76,6 +78,7 @@ public class EngineSettingsGui {
     private double amountTo = -1;
     private ZonedDateTime timeFrom;
     private ZonedDateTime timeTo;
+    private int limit = -1;
 
     public EngineSettingsGui() {
         this.gui = Gui.gui()
@@ -267,6 +270,41 @@ public class EngineSettingsGui {
 
     private boolean isValidUser(String user) {
         return USERNAME.matcher(user).matches();
+    }
+
+    private void configureLimit(Player player) {
+        SignGUI.builder()
+                .setLine(0, "Vælg grænse")
+                .setLine(1, this.limit != -1 ? String.valueOf(this.limit) : "")
+                .setHandler((__, result) -> {
+                    String line = result.getLine(1);
+                    if (line.isEmpty()) {
+                        this.limit = -1;
+                        updateLimitItem();
+                        return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
+                    }
+
+                    int limit;
+                    try {
+                        limit = Integer.parseInt(line);
+                    } catch (NumberFormatException ex) {
+                        player.sendMessage("§cUygldig grænse!");
+                        return Collections.singletonList(SignGUIAction.run(() -> configureLimit(player)));
+                    }
+
+                    if (limit < 1) {
+                        player.sendMessage("§cUgyldig grænse!");
+                        return Collections.singletonList(SignGUIAction.run(() -> configureLimit(player)));
+                    }
+
+                    this.limit = limit;
+
+                    updateLimitItem();
+
+                    return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
+                })
+                .build()
+                .open(player);
     }
 
     private void addToUser(Player player) {
@@ -662,6 +700,7 @@ public class EngineSettingsGui {
         this.amountTo = -1;
         this.timeFrom = null;
         this.timeTo = null;
+        this.limit = -1;
 
         updateItems();
     }
@@ -674,6 +713,7 @@ public class EngineSettingsGui {
         updateTimeItem();
         updateTypeItem();
         updateGroupItem();
+        updateLimitItem();
 
         this.gui.update();
     }
@@ -751,11 +791,33 @@ public class EngineSettingsGui {
             executeItemLore.add(Component.text("§7Sorteres lavest til højest"));
         }
 
+        if (this.limit != -1) {
+            executeItemLore.add(Component.text("§7Grænse på " + this.limit + " transaktion" + (this.limit > 1 ? "er" : "")));
+        }
+
         this.gui.updateItem(53, new GuiItem(
                 ItemBuilder.from(new ItemStack(Material.WOOL, 1, (short) 5))
                         .name(Component.text("§aUdfør søgning"))
                         .lore(executeItemLore)
                         .build(), event -> openEngineGui((Player) event.getWhoClicked())));
+    }
+
+    private void updateLimitItem() {
+        List<Component> limitItemLore = new ArrayList<>();
+        if (this.limit == -1) {
+            limitItemLore.add(Component.text("§7Ingen grænse §8(Klik)"));
+        } else {
+            limitItemLore.add(Component.text("§7Grænse på " + this.limit + " transaktioner §8(Klik)"));
+        }
+
+        this.gui.updateItem(51, new GuiItem(
+                ItemBuilder.from(Material.STICK)
+                        .name(Component.text("§eVælg grænse"))
+                        .lore(limitItemLore)
+                        .build(), event -> configureLimit((Player) event.getWhoClicked())
+        ));
+
+        updateExecuteItem();
     }
 
     private void updateAmountItem() {
@@ -1017,6 +1079,10 @@ public class EngineSettingsGui {
             finalQuery = Engine.doTransformation(collection, this.sortingMethod, finalQuery);
             if (this.sortHighestToLowest) {
                 finalQuery.transform(PostQueryTransformer.reversed());
+            }
+
+            if (this.limit != -1) {
+                finalQuery.limit(this.limit);
             }
 
             EngineQuery<? extends TransactionNode> queryBuffer = finalQuery;
