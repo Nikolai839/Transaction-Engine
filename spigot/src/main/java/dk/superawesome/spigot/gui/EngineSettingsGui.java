@@ -820,7 +820,7 @@ public class EngineSettingsGui {
         typeItemLore.add(Component.text("§7Husk man kan have mere end en"));
         typeItemLore.add(Component.empty());
 
-        typeItemLore.add(Component.text("§7Valgt type: §8(Klik) " + (this.type == null ? "§c(Ingen)" : "")));
+        typeItemLore.add(Component.text("§7Valgt type: §8(Klik) " + (this.type == null ? "§a(Alle)" : "")));
         for (TransactionNode.PayType type : TransactionNode.PayType.values()) {
             String colour = type.equals(this.type) ? "§e" : "§8";
 
@@ -887,7 +887,7 @@ public class EngineSettingsGui {
         }
         groupItemLore.add(Component.empty());
 
-        groupItemLore.add(Component.text("§7Valgt gruppering: §7(Klik) " + (this.groupBy == null ? "§c(Ingen)" : "")));
+        groupItemLore.add(Component.text("§7Valgt gruppering: §7(Klik)"));
         for (GroupBy groupBy : GroupBy.values()){
             String colour = this.groupBy == groupBy ? "§e" : "§8";
             groupItemLore.add(Component.text(colour + " - " + groupBy.getName()));
@@ -965,7 +965,7 @@ public class EngineSettingsGui {
                 }
             }
 
-            EngineQuery<SingleTransactionNode> query = Engine.query(builder.build());
+            EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
             if (this.traceModeEnabled) {
                 // TODO
             }
@@ -997,19 +997,19 @@ public class EngineSettingsGui {
 
                 finalQuery = query.transform(
                         PostQueryTransformer.GroupBy.groupBy(PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
-                                new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>() {
+                        new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>() {
 
-                                    @Override
-                                    public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
-                                        return new TransactionNode.GroupedTransactionNode(nodes, bound);
-                                    }
+                            @Override
+                            public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
+                                return new TransactionNode.GroupedTransactionNode(nodes, bound);
+                            }
 
-                                    @Override
-                                    public String getKey(SingleTransactionNode node) {
-                                        return func.apply(node);
-                                    }
-                                }
-                        ));
+                            @Override
+                            public String getKey(SingleTransactionNode node) {
+                                return func.apply(node);
+                            }
+                        })
+                );
             } else {
                 finalQuery = query;
             }
