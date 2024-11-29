@@ -9,7 +9,7 @@ import java.util.*;
 public class Cache implements EngineCache<SingleTransactionNode> {
 
     private LocalDateTime lastCache;
-    private final List<SingleTransactionNode> cache = new LinkedList<>();
+    private final Collection<SingleTransactionNode> cache = new LinkedList<>();
 
     @Override
     public LocalDateTime latestCacheTime() {
@@ -22,7 +22,7 @@ public class Cache implements EngineCache<SingleTransactionNode> {
     }
 
     @Override
-    public List<SingleTransactionNode> getCachedNodes() {
+    public Collection<SingleTransactionNode> getCachedNodes() {
         return this.cache;
     }
 

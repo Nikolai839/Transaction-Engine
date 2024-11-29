@@ -27,6 +27,7 @@ public class Engine {
 
     public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request) throws RequestException {
         try {
+            request.getCache().markCached();
             return request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery())
                     .filter(request);
         } catch (Exception ex) {
