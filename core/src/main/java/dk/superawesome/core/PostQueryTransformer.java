@@ -182,6 +182,7 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                     for (N node : group) {
                         if (!this.operator.checkGroup(subGroup, node)) {
                             subGroup = new LinkedList<>();
+                            subGroupsOverview.add(subGroup);
                         }
 
                         subGroup.add(node);
