@@ -26,12 +26,12 @@ public class TransactionRequestBuilder<B extends EngineRequest.Builder<SingleTra
     }
 
     public TransactionRequestBuilder<B, RESULT> from(ZonedDateTime date) {
-        builder.addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isAfter(date)));
+        builder.addFilter(QueryFilter.TIME, QueryFilter.TIME.makeFilter(d -> d.isAfter(date)));
         return this;
     }
 
     public TransactionRequestBuilder<B, RESULT> to(ZonedDateTime date) {
-        builder.addFilter(QueryFilter.FilterTypes.TIME, QueryFilter.FilterTypes.TIME.makeFilter(d -> d.isBefore(date)));
+        builder.addFilter(QueryFilter.TIME, QueryFilter.TIME.makeFilter(d -> d.isBefore(date)));
         return this;
     }
 
@@ -42,7 +42,7 @@ public class TransactionRequestBuilder<B extends EngineRequest.Builder<SingleTra
     }
 
     public TransactionRequestBuilder<B, RESULT> range(double from, double to) {
-        builder.addFilter(QueryFilter.FilterTypes.AMOUNT, QueryFilter.FilterTypes.AMOUNT.makeFilter(d -> d > Math.min(from, to) && d < Math.max(from, to)));
+        builder.addFilter(QueryFilter.AMOUNT, QueryFilter.AMOUNT.makeFilter(d -> d > Math.min(from, to) && d < Math.max(from, to)));
         return this;
     }
 
@@ -64,22 +64,22 @@ public class TransactionRequestBuilder<B extends EngineRequest.Builder<SingleTra
     }
 
     public TransactionRequestBuilder<B, RESULT> from(String... names) {
-        return forPlayers(QueryFilter.FilterTypes.FROM_USER, names);
+        return forPlayers(QueryFilter.FROM_USER, names);
     }
 
     public TransactionRequestBuilder<B, RESULT> to(String... names) {
-        return forPlayers(QueryFilter.FilterTypes.TO_USER, names);
+        return forPlayers(QueryFilter.TO_USER, names);
     }
 
     public TransactionRequestBuilder<B, RESULT> is(TransactionNode.PayType... types) {
         List<TransactionNode.PayType> typesList = Arrays.stream(types).toList();
-        builder.addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(typesList::contains));
+        builder.addFilter(QueryFilter.TYPE, QueryFilter.TYPE.makeFilter(typesList::contains));
         return this;
     }
 
     public TransactionRequestBuilder<B, RESULT> isNot(TransactionNode.PayType... types) {
         List<TransactionNode.PayType> typesList = Arrays.stream(types).toList();
-        builder.addFilter(QueryFilter.FilterTypes.TYPE, QueryFilter.FilterTypes.TYPE.makeFilter(Predicate.not(typesList::contains)));
+        builder.addFilter(QueryFilter.TYPE, QueryFilter.TYPE.makeFilter(Predicate.not(typesList::contains)));
         return this;
     }
 
