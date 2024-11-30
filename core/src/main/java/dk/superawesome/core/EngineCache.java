@@ -2,16 +2,17 @@ package dk.superawesome.core;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public interface EngineCache<N extends Node> {
-
-    LocalDateTime latestCacheTime();
 
     boolean isCacheEmpty();
 
     Collection<N> getCachedNodes();
 
-    void markCached();
+    boolean isRunning();
+
+    LocalDateTime start(CompletableFuture<Void> invoker);
+
+    void reset();
 }

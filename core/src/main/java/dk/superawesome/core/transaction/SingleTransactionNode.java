@@ -1,8 +1,9 @@
-package dk.superawesome.core;
+package dk.superawesome.core.transaction;
+
+import dk.superawesome.core.PostQueryTransformer;
 
 import java.time.ZonedDateTime;
 import java.time.chrono.ChronoZonedDateTime;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.function.Function;
 

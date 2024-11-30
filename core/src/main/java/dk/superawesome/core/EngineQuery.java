@@ -17,6 +17,7 @@ public class EngineQuery<N extends Node> {
                 nodes.add(node);
             }
 
+            System.out.println("Got nodes " + nodes.size());
             cache.getCachedNodes().addAll(nodes);
 
             set.close();

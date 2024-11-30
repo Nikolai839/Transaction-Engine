@@ -1,4 +1,6 @@
-package dk.superawesome.core;
+package dk.superawesome.core.transaction;
+
+import dk.superawesome.core.PostQueryTransformer;
 
 public enum SortingMethod {
     BY_TIME("tidspunkt", false),

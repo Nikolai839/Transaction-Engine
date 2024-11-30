@@ -3,9 +3,7 @@ package dk.superawesome.core;
 import dk.superawesome.core.db.DatabaseExecutor;
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;
-import dk.superawesome.core.exceptions.RequestSetupException;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;

@@ -1,12 +1,13 @@
 package dk.superawesome.core;
 
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.TransactionNode;
+
 import java.time.ZonedDateTime;
-import java.util.Date;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.zip.ZipEntry;
 
-public interface QueryFilter<N extends Node> {
+public interface QueryFilter<N extends Node> extends Predicate<N> {
 
     boolean test(N input);
 

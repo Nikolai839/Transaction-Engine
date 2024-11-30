@@ -1,23 +1,32 @@
 package dk.superawesome.core;
 
 import dk.superawesome.core.exceptions.RequestException;
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.SortingMethod;
+import dk.superawesome.core.transaction.TransactionNode;
 
+import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.concurrent.CompletableFuture;
 
 public class Engine {
 
     public static <N extends Node> EngineQuery<N> queryFromCache(EngineRequest<N> request) throws RequestException {
         try {
-            if (request.getCache().isCacheEmpty()) {
+            if (request.getCache().isCacheEmpty() && !request.getCache().isRunning()) {
                 return query(request);
             }
 
+            CompletableFuture<Void> invoker = new CompletableFuture<>();
+            LocalDateTime dateTime = request.getCache().start(invoker);
+
             EngineQuery<N> query = new EngineQuery<>(request.getCache().getCachedNodes());
             query.addNodes(
-                    request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery(request.getCache()))
+                    request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery(dateTime))
                             .nodes()
             );
+
+            invoker.complete(null);
 
             return query.filter(request);
         } catch (Exception ex) {
@@ -26,10 +35,15 @@ public class Engine {
     }
 
     public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request) throws RequestException {
+        CompletableFuture<Void> invoker = new CompletableFuture<>();
         try {
-            request.getCache().markCached();
-            return request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery())
+            request.getCache().start(invoker);
+            EngineQuery<N> query = request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery())
                     .filter(request);
+
+            invoker.complete(null);
+
+            return query;
         } catch (Exception ex) {
             throw new RequestException(ex);
         }

@@ -37,6 +37,11 @@ public final class TransactionEngine extends JavaPlugin {
         Bukkit.getScheduler().runTaskAsynchronously(this, EngineSettingsGui::loadToCache);
     }
 
+    @Override
+    public void onDisable() {
+        EngineSettingsGui.CACHE.reset();
+    }
+
     public DatabaseSettings getSettings() {
         return this.settings;
     }

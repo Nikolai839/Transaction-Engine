@@ -1,5 +1,9 @@
 package dk.superawesome.core;
 
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.SortingMethod;
+import dk.superawesome.core.transaction.TransactionNode;
+
 import java.time.ZonedDateTime;
 import java.time.chrono.ChronoZonedDateTime;
 import java.util.*;
@@ -25,10 +29,10 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
     class SortBy<N extends Node> implements PostQueryTransformer<N, N> {
 
         @SuppressWarnings("unchecked")
-        public static <N extends Node> SortVisitor<N> getVisitor(Node.Collection collection) {
+        public static <V extends SortVisitor<N>, N extends Node> V getVisitor(Node.Collection collection) {
             return switch (collection) {
-                case SINGLE -> (SortVisitor<N>) new SingleTransactionNode.Visitor();
-                case GROUPED -> (SortVisitor<N>) new TransactionNode.GroupedTransactionNode.Visitor();
+                case SINGLE -> (V) new SingleTransactionNode.Visitor();
+                case GROUPED -> (V) new TransactionNode.GroupedTransactionNode.Visitor();
             };
 
         }

@@ -1,5 +1,6 @@
-package dk.superawesome.core;
+package dk.superawesome.core.transaction;
 
+import dk.superawesome.core.NodeFactory;
 import dk.superawesome.core.db.Settings;
 import dk.superawesome.core.exceptions.RequestException;
 

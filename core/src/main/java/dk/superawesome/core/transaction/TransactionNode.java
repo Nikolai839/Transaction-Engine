@@ -1,4 +1,6 @@
-package dk.superawesome.core;
+package dk.superawesome.core.transaction;
+
+import dk.superawesome.core.*;
 
 import java.time.chrono.ChronoZonedDateTime;
 import java.util.*;

@@ -7,6 +7,10 @@ import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
 import dk.superawesome.core.exceptions.RequestException;
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.SortingMethod;
+import dk.superawesome.core.transaction.TransactionNode;
+import dk.superawesome.core.transaction.TransactionRequestBuilder;
 import dk.superawesome.spigot.Cache;
 import dk.superawesome.spigot.DatabaseController;
 import dk.superawesome.spigot.TransactionEngine;
@@ -35,7 +39,7 @@ import java.util.stream.Stream;
 
 public class EngineSettingsGui {
 
-    private static final Cache CACHE = new Cache();
+    public static final Cache CACHE = new Cache();
 
     public static void loadToCache() {
         Bukkit.getScheduler().runTaskAsynchronously(TransactionEngine.instance, () -> {
@@ -1031,6 +1035,7 @@ public class EngineSettingsGui {
             }
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
+            Bukkit.broadcastMessage("Got " + query.size());
             if (this.traceModeEnabled) {
                 query = Engine.trace(query);
             }

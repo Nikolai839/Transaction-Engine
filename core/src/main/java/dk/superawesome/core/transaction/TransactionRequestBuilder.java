@@ -1,5 +1,6 @@
-package dk.superawesome.core;
+package dk.superawesome.core.transaction;
 
+import dk.superawesome.core.*;
 import dk.superawesome.core.db.DatabaseExecutor;
 import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;

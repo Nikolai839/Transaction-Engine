@@ -1,5 +1,9 @@
 package dk.superawesome.core;
 
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.SortingMethod;
+import dk.superawesome.core.transaction.TransactionNode;
+
 import java.util.EnumMap;
 import java.util.Optional;
 import java.util.function.Function;

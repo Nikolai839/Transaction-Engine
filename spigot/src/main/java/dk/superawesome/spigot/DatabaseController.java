@@ -6,6 +6,8 @@ import dk.superawesome.core.db.DatabaseSettings;
 import dk.superawesome.core.db.Requester;
 import dk.superawesome.core.db.Settings;
 import dk.superawesome.core.exceptions.RequestException;
+import dk.superawesome.core.transaction.SingleTransactionNode;
+import dk.superawesome.core.transaction.TransactionNodeFactory;
 import org.bukkit.Bukkit;
 import org.mariadb.jdbc.MariaDbPoolDataSource;
 
@@ -14,7 +16,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.logging.Level;
 
@@ -54,11 +55,9 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             }
 
             @Override
-            public String getQuery(EngineCache<? extends Node> cache) {
-                LocalDateTime dateTime = cache.latestCacheTime();
+            public String getQuery(LocalDateTime dateTime) {
                 String time = dateTime.getYear() + "-" + dateTime.getMonthValue() + "-" + dateTime.getDayOfMonth() + " " + dateTime.getHour() + ":" + dateTime.getMinute() + ":" + dateTime.getSecond();
 
-                cache.markCached();
                 return String.format("""
                         SELECT l.created, SUM(l.amount) AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
