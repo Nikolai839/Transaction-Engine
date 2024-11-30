@@ -319,7 +319,7 @@ public class EngineSettingsGui {
                         }
                     }
 
-                    if (!Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).allMatch(String::isEmpty)) {
+                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).noneMatch(String::isEmpty)) {
                         if (!added) {
                             player.sendMessage("§cIngen gyldig spiller valgt!");
                             return Collections.singletonList(SignGUIAction.run(() -> addToUser(player)));
@@ -346,12 +346,14 @@ public class EngineSettingsGui {
                         }
                     }
 
-                    if (!added) {
-                        player.sendMessage("§cIngen gyldig spiller valgt!");
-                        return Collections.singletonList(SignGUIAction.run(() -> addFromUser(player)));
-                    }
+                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).noneMatch(String::isEmpty)) {
+                        if (!added) {
+                            player.sendMessage("§cIngen gyldig spiller valgt!");
+                            return Collections.singletonList(SignGUIAction.run(() -> addFromUser(player)));
+                        }
 
-                    updateUsers();
+                        updateUsers();
+                    }
 
                     return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                 })
@@ -485,6 +487,7 @@ public class EngineSettingsGui {
                     if (fromString.isEmpty() && toString.isEmpty()) {
                         this.amountFrom = -1;
                         this.amountTo = -1;
+                        updateAmountItem();
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
                     }
 
