@@ -5,7 +5,6 @@ import dev.triumphteam.gui.guis.Gui;
 import dev.triumphteam.gui.guis.GuiItem;
 import dk.superawesome.core.*;
 import dk.superawesome.core.transaction.SingleTransactionNode;
-import dk.superawesome.core.transaction.SortingMethod;
 import dk.superawesome.core.transaction.TransactionNode;
 import dk.superawesome.core.transaction.TransactionRequestBuilder;
 import net.kyori.adventure.text.Component;
@@ -94,12 +93,11 @@ public class EngineGui<N extends TransactionNode> {
             return this.visitor;
         }
 
-        if (node.isGrouped()) {
-            return this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
-        } else {
-            boolean isTraced = node.isTraced();
-            return this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings, isTraced);
-        }
+        return switch (node.getCollection()) {
+            case SINGLE -> this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings, node.isTraced());
+            case GROUPED -> this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
+            case GROUP_GROUPED -> this.visitor = (TransactionVisitor<N>) new GroupGroupedTransactionVisitor((QueryContext<TransactionNode.GroupedBothWayTransactionNode, SingleTransactionNode>) this.context, this.settings);
+        };
     }
 
     private void displayNodes() {
@@ -175,7 +173,7 @@ public class EngineGui<N extends TransactionNode> {
         void clickInspection(Player player, T node);
     }
 
-    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
+    private record  SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
 
         @Override
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
@@ -265,15 +263,93 @@ public class EngineGui<N extends TransactionNode> {
                 }
             }
 
-            EngineQuery<SingleTransactionNode> query = Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
+            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
             if (this.settings.isSortHighestToLowest()) {
-                query.transform(PostQueryTransformer.reversed());
+                query = query.transform(PostQueryTransformer.reversed());
             }
 
-            new EngineGui<>(
-                    Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), query),
-                    this.context, this.settings
-            ).open(player);
+            new EngineGui<>(query, this.context, this.settings)
+                    .open(player);
+        }
+    }
+
+    private record GroupGroupedTransactionVisitor(QueryContext<TransactionNode.GroupedBothWayTransactionNode, SingleTransactionNode> context, EngineSettingsGui settings) implements TransactionVisitor<TransactionNode.GroupedBothWayTransactionNode> {
+
+        @Override
+        public void applyToItem(TransactionNode.GroupedBothWayTransactionNode group, ItemStack item, int index) {
+            SkullMeta meta = (SkullMeta) item.getItemMeta();
+            meta.setOwner(group.username());
+            meta.setDisplayName("§7Fra/Til §e" + group.username() + " §8(§e" + index + "§8) (Klik)");
+
+            List<String> lore = new ArrayList<>();
+
+            Optional<SingleTransactionNode.Target> oldestOptional = group.getOldestTransaction();
+            oldestOptional.ifPresent(target -> lore.add("§8Siden " + TIME_FORMATTER.format(target.node().time())));
+
+            lore.add("§7" + EMERALD_FORMATTER.format(group.getAmount()) + " emeralder i alt");
+            lore.add("§7" + EMERALD_FORMATTER.format(group.getSum()) + " sum af emeralder i alt");
+            lore.add("§7" + group.combine().size() + " transaktioner i alt");
+
+            Optional<SingleTransactionNode> highestOptionalTo = group.getHighestTransaction(TransactionNode.GroupedTransactionNode.Bound.TO);
+            Optional<SingleTransactionNode> highestOptionalFrom = group.getHighestTransaction(TransactionNode.GroupedTransactionNode.Bound.FROM);
+            if (highestOptionalTo.isPresent() || highestOptionalFrom.isPresent()) {
+                lore.add("");
+                lore.add("§8Højeste transaktioner:");
+                if (highestOptionalTo.isPresent()) {
+                    SingleTransactionNode highestTo = highestOptionalTo.get();
+                    lore.add("  §8Til " + group.username() + ":");
+                    lore.add("  §7Fra " + highestTo.fromUserName() + ": " + EMERALD_FORMATTER.format(highestTo.amount()) + " emeralder");
+                    lore.add("  §7Overført d. " + TIME_FORMATTER.format(highestTo.time()));
+                }
+                if (highestOptionalFrom.isPresent()) {
+                    if (highestOptionalTo.isPresent()) {
+                        lore.add("");
+                    }
+                    SingleTransactionNode highestFrom = highestOptionalFrom.get();
+                    lore.add("  §8Fra " + group.username() + ":");
+                    lore.add("  §7Til " + highestFrom.toUserName() + ": " + EMERALD_FORMATTER.format(highestFrom.amount()) + " emeralder");
+                    lore.add("  §7Overført d. " + TIME_FORMATTER.format(highestFrom.time()));
+                }
+            }
+
+            Optional<SingleTransactionNode.Target> latestOptional = group.getLatestTransaction();
+            if (latestOptional.isPresent()) {
+                SingleTransactionNode.Target latest = latestOptional.get();
+                TransactionNode.GroupedTransactionNode.Bound bound = latest.bound();
+                SingleTransactionNode node = latest.node();
+
+                lore.add("");
+                lore.add("§8Seneste transaktion:");
+                lore.add("§7" + (bound.equals(TransactionNode.GroupedTransactionNode.Bound.FROM) ? "Til" : "Fra") + " " + (bound.equals(TransactionNode.GroupedTransactionNode.Bound.FROM) ? node.toUserName() : node.fromUserName()) + ": " + EMERALD_FORMATTER.format(node.amount()) + " emeralder");
+                lore.add("§7Overført d. " + TIME_FORMATTER.format(node.time()));
+            }
+
+            if (oldestOptional.isPresent()) {
+                SingleTransactionNode.Target oldest = oldestOptional.get();
+                TransactionNode.GroupedTransactionNode.Bound bound = oldest.bound();
+                SingleTransactionNode node = oldest.node();
+
+                lore.add("");
+                lore.add("§8Ældste transaktion:");
+                lore.add("§7" + (bound.equals(TransactionNode.GroupedTransactionNode.Bound.FROM) ? "Til" : "Fra") + " " + (bound.equals(TransactionNode.GroupedTransactionNode.Bound.FROM) ? node.toUserName() : node.fromUserName()) + ": " + EMERALD_FORMATTER.format(node.amount()) + " emeralder");
+                lore.add("§7Overført d. " + TIME_FORMATTER.format(node.time()));
+            }
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+
+        @Override
+        public void clickInspection(Player player, TransactionNode.GroupedBothWayTransactionNode node) {
+            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.query().initialNodes());
+
+            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery);
+            if (this.settings.isSortHighestToLowest()) {
+                query = query.transform(PostQueryTransformer.reversed());
+            }
+
+            new EngineGui<>(query, this.context, this.settings)
+                    .open(player);
         }
     }
 
@@ -284,15 +360,10 @@ public class EngineGui<N extends TransactionNode> {
             SkullMeta meta = (SkullMeta) item.getItemMeta();
 
             String other;
-            Function<SingleTransactionNode, String> sourceFunction;
             Function<SingleTransactionNode, String> targetFunction;
-            Function<SingleTransactionNode.Traced, Double> tracedFunction;
             switch (group.bound()) {
-                // TODO: make pretty
                 case TO:
-                    sourceFunction = SingleTransactionNode::toUserName;
                     targetFunction = SingleTransactionNode::fromUserName;
-                    tracedFunction = SingleTransactionNode.Traced::toUserTrace;
                     String toPlayer = group.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
 
                     meta.setOwner(toPlayer);
@@ -300,9 +371,7 @@ public class EngineGui<N extends TransactionNode> {
                     meta.setDisplayName("§7Til §e" + toPlayer + " §8(§e" + index + "§8) (Klik for inspektion)");
                     break;
                 case FROM:
-                    sourceFunction = SingleTransactionNode::fromUserName;
                     targetFunction = SingleTransactionNode::toUserName;
-                    tracedFunction = SingleTransactionNode.Traced::fromUserTrace;
                     String fromPlayer = group.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
 
                     meta.setOwner(fromPlayer);
@@ -314,21 +383,12 @@ public class EngineGui<N extends TransactionNode> {
             }
 
             List<String> lore = new ArrayList<>();
+
+            Optional<SingleTransactionNode> oldestOptional = group.getOldestTransaction();
+            oldestOptional.ifPresent(target -> lore.add("§8Siden " + TIME_FORMATTER.format(target.node().time())));
+
             lore.add("§7" + EMERALD_FORMATTER.format(group.getAmount()) + " emeralder i alt");
             lore.add("§7" + group.size() + " transaktioner i alt");
-
-            if (group.nodes().stream().anyMatch(SingleTransactionNode::isTraced)) {
-                SingleTransactionNode last = group.nodes().stream().reduce((prev, next) -> next).orElse(null);
-                if (last == null) {
-                     return; // ?
-                }
-
-                lore.add("");
-                lore.add("§8Sporet i alt: (Fra " + TIME_FORMATTER.format(last.time()) + ")");
-                SingleTransactionNode.Traced traced = (SingleTransactionNode.Traced) last;
-                double trace = tracedFunction.apply(traced);
-                lore.add("§7" + sourceFunction.apply(last) + ": " + (trace > 0 ? "+" : "") + EMERALD_FORMATTER.format(trace) + " emeralder");
-            }
 
             Optional<SingleTransactionNode> highestOptional = group.getHighestTransaction();
             if (highestOptional.isPresent()) {
@@ -348,7 +408,6 @@ public class EngineGui<N extends TransactionNode> {
                 lore.add("§7Overført d. " + TIME_FORMATTER.format(latest.time()));
             }
 
-            Optional<SingleTransactionNode> oldestOptional = group.getOldestTransaction();
             if (oldestOptional.isPresent()) {
                 SingleTransactionNode oldest = oldestOptional.get();
                 lore.add("");
@@ -358,7 +417,6 @@ public class EngineGui<N extends TransactionNode> {
             }
 
             meta.setLore(lore);
-
             item.setItemMeta(meta);
         }
 
@@ -366,14 +424,13 @@ public class EngineGui<N extends TransactionNode> {
         public void clickInspection(Player player, TransactionNode.GroupedTransactionNode node) {
             EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.query().initialNodes());
 
-            new EngineGui<>(
-                    new EngineQuery<>(
-                            Engine.doTransformation(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery), true
-                    ),
-                    this.context,
-                    this.settings
-            )
-            .open(player);
+            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery);
+            if (this.settings.isSortHighestToLowest()) {
+                query = query.transform(PostQueryTransformer.reversed());
+            }
+
+            new EngineGui<>(query, this.context, this.settings)
+                    .open(player);
         }
     }
 }

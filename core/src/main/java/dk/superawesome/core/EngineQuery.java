@@ -17,7 +17,6 @@ public class EngineQuery<N extends Node> {
                 nodes.add(node);
             }
 
-            System.out.println("Got nodes " + nodes.size());
             cache.getCachedNodes().addAll(nodes);
 
             set.close();
@@ -62,7 +61,7 @@ public class EngineQuery<N extends Node> {
     }
 
     public <TN extends Node> EngineQuery<TN> transform(PostQueryTransformer<N, TN> transformer) {
-        return new EngineQuery<>(transformer.transform(this.nodes), this.initialNodes);
+        return new EngineQuery<>(transformer.transform(new LinkedList<>(this.nodes)), this.initialNodes);
     }
 
     public void addNodes(List<N> nodes) {

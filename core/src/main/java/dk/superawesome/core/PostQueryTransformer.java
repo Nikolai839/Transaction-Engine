@@ -5,7 +5,6 @@ import dk.superawesome.core.transaction.SortingMethod;
 import dk.superawesome.core.transaction.TransactionNode;
 
 import java.time.ZonedDateTime;
-import java.time.chrono.ChronoZonedDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BinaryOperator;
@@ -33,6 +32,7 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             return switch (collection) {
                 case SINGLE -> (V) new SingleTransactionNode.Visitor();
                 case GROUPED -> (V) new TransactionNode.GroupedTransactionNode.Visitor();
+                case GROUP_GROUPED -> (V) new TransactionNode.GroupedBothWayTransactionNode.Visitor();
             };
 
         }
@@ -41,14 +41,14 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             return new SortBy<>((o1, o2) -> comparator.compare(func.apply(o1), func.apply(o2)));
         }
 
-        public static <GN extends GroupedNode<N>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, Comparator<T> comparator) {
+        public static <GN extends GroupedNode<?>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, Comparator<T> comparator) {
             return new SortBy<>((o1, o2) -> comparator.compare(
                     func.apply(nodes.apply(o1).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null)),
                     func.apply(nodes.apply(o2).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null))
             ));
         }
 
-        public static <GN extends GroupedNode<N>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, BinaryOperator<T> collector, Comparator<T> comparator) {
+        public static <GN extends GroupedNode<?>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, BinaryOperator<T> collector, Comparator<T> comparator) {
             return new SortBy<>((o1, o2) -> comparator.compare(
                     nodes.apply(o1).stream().map(func).reduce(collector).orElse(null),
                     nodes.apply(o2).stream().map(func).reduce(collector).orElse(null)
@@ -76,6 +76,10 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
             default SortBy<N> sortByGroupedAmount() {
                 return null;
             }
+
+            default SortBy<N> sortBySum() {
+                return null;
+            }
         }
 
         public interface SortVisitable<N extends Node, V extends SortVisitor<N>> {
@@ -84,11 +88,11 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
         }
     }
 
-    class GroupBy<N extends Node, GN extends GroupedNode<N>, T> implements PostQueryTransformer<N, GN> {
+    class GroupBy<N extends Node, TN extends Node.Linked<N>, GN extends GroupedNode<?>, KEY> implements PostQueryTransformer<N, GN> {
 
-        public interface GroupOperator<N extends Node> {
+        public interface GroupOperator<TN extends Node.Linked<N>, N extends Node> {
 
-            static <N extends Node> GroupOperator<N> mix(List<GroupOperator<N>> operators) {
+            static <TN extends Node.Linked<N>, N extends Node> GroupOperator<TN, N> mix(List<GroupOperator<TN, N>> operators) {
                 if (operators.isEmpty()) {
                     return (__, ___) -> true;
                 }
@@ -98,7 +102,7 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                 }
 
                 return (nodes, node) -> {
-                    for (GroupOperator<N> operator : operators) {
+                    for (GroupOperator<TN, N> operator : operators) {
                         if (!operator.checkGroup(nodes, node)) {
                             return false;
                         }
@@ -108,83 +112,87 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
                 };
             }
 
-            static <N extends Node> GroupOperator<N> max(int max) {
+            static <TN extends Node.Linked<N>, N extends Node> GroupOperator<TN, N> max(int max) {
                 return (group, node) -> group.size() < max;
             }
 
-            static <N extends Node> GroupOperator<N> maxBetween(Function<N, ZonedDateTime> func, int amount, TimeUnit unit) {
-                return new GroupOperator<>() {
-
-                    @Override
-                    public void sort(List<N> group) {
-                        group.sort(Comparator.comparing(func, ChronoZonedDateTime::compareTo));
+            static <TN extends Node.Linked<N>, N extends Node> GroupOperator<TN, N> maxBetween(Function<N, ZonedDateTime> func, int amount, TimeUnit unit) {
+                return (group, node) -> {
+                    if (group.isEmpty()) {
+                        return true;
                     }
 
-                    @Override
-                    public boolean checkGroup(List<N> group, N node) {
-                        if (group.isEmpty()) {
-                            return true;
-                        }
-
-                        long diff = Math.abs(func.apply(group.get(0)).toEpochSecond() - func.apply(node).toEpochSecond());
-                        return diff < unit.toSeconds(amount);
-                    }
+                    long diff = Math.abs(func.apply(group.get(0).node()).toEpochSecond() - func.apply(node).toEpochSecond());
+                    return diff < unit.toSeconds(amount);
                 };
             }
 
-            default void sort(List<N> group) {
+            boolean checkGroup(List<TN> group, N node);
+        }
 
+        public interface GroupCollector<N extends Node, TN extends Node, GN extends GroupedNode<?>, KEY> {
+
+            default void insert(KEY key, TN node, Map<KEY, List<TN>> groups) {
+                if (!groups.containsKey(key)) {
+                    groups.put(key, new LinkedList<>());
+                }
+
+                Collection<TN> group = groups.get(key);
+                group.add(node);
             }
 
-            boolean checkGroup(List<N> group, N node);
+            GN collect(Collection<TN> nodes);
+
+            void applyToGroup(N node, Map<KEY, List<TN>> groups);
+
+            interface Direct<N extends Node, GN extends GroupedNode<?>, KEY> extends GroupCollector<N, N, GN, KEY> {
+
+                default void applyToGroup(N node, Map<KEY, List<N>> groups) {
+                    KEY key = getKey(node);
+                    insert(key, node, groups);
+                }
+
+                KEY getKey(N node);
+            }
         }
 
-        public interface GroupCollector<N extends Node, GN extends GroupedNode<N>, T> {
-
-            GN collect(Collection<N> nodes);
-
-            T getKey(N node);
+        public static <N extends Node, TN extends Node.Linked<N>, GN extends GroupedNode<?>, KEY> GroupBy<N, TN, GN, KEY> groupBy(GroupCollector<N, TN, GN, KEY> collector) {
+            return groupBy(null, null, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(GroupCollector<N, GN, T> collector) {
-            return groupBy(null, collector);
+        public static <N extends Node, TN extends Node.Linked<N>, GN extends GroupedNode<?>, KEY> GroupBy<N, TN, GN, KEY> groupBy(GroupOperator<TN, N> operator, GroupCollector<N, TN, GN, KEY> collector) {
+            return groupBy(null, Node.Linked::node, collector);
         }
 
-        public static <N extends Node, GN extends GroupedNode<N>, T> GroupBy<N, GN, T> groupBy(GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
-            return new GroupBy<>(operator, collector);
+        public static <N extends Node, TN extends Node.Linked<N>, GN extends GroupedNode<?>, KEY> GroupBy<N, TN, GN, KEY> groupBy(GroupOperator<TN, N> operator, Function<TN, N> back, GroupCollector<N, TN, GN, KEY> collector) {
+            return new GroupBy<>(operator, back, collector);
         }
 
-        private final GroupOperator<N> operator;
-        private final GroupCollector<N, GN, T> collector;
+        private final Function<TN, N> back;
+        private final GroupOperator<TN, N> operator;
+        private final GroupCollector<N, TN, GN, KEY> collector;
 
-        public GroupBy(GroupOperator<N> operator, GroupCollector<N, GN, T> collector) {
+        public GroupBy(GroupOperator<TN, N> operator, Function<TN, N> back, GroupCollector<N, TN, GN, KEY> collector) {
             this.operator = operator;
+            this.back = back;
             this.collector = collector;
         }
 
         @Override
         public List<GN> transform(List<N> nodes) {
-            Map<T, List<N>> groups = new HashMap<>();
+            Map<KEY, List<TN>> groups = new HashMap<>();
 
             for (N node : nodes) {
-                T key = this.collector.getKey(node);
-                if (!groups.containsKey(key)) {
-                    groups.put(key, new LinkedList<>());
-                }
-
-                Collection<N> group = groups.get(key);
-                group.add(node);
+                this.collector.applyToGroup(node, groups);
             }
 
             if (this.operator != null) {
-                Collection<List<N>> subGroupsOverview = new LinkedList<>();
-                for (List<N> group : groups.values()) {
-                    this.operator.sort(group);
-
-                    List<N> subGroup = new LinkedList<>();
+                Collection<List<TN>> subGroupsOverview = new LinkedList<>();
+                for (List<TN> group : groups.values()) {
+                    List<TN> subGroup = new LinkedList<>();
                     subGroupsOverview.add(subGroup);
-                    for (N node : group) {
-                        if (!this.operator.checkGroup(subGroup, node)) {
+                    for (TN node : group) {
+                        if (!this.operator.checkGroup(subGroup, back.apply(node))) {
                             subGroup = new LinkedList<>();
                             subGroupsOverview.add(subGroup);
                         }

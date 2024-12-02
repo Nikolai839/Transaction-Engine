@@ -11,30 +11,36 @@ import java.util.function.Supplier;
 
 public interface Node {
 
-    default boolean isGrouped() {
-        return false;
+    default Collection getCollection() {
+        return Collection.SINGLE;
+    }
+
+    interface Linked<TO extends Node> extends Node {
+
+        TO node();
     }
 
     enum Collection {
-        SINGLE(SingleVisitable::new), GROUPED(GroupedVisitable::new);
+        SINGLE(SingleVisitable::new, false),
+        GROUPED(GroupedVisitable::new, true),
+        GROUP_GROUPED(GroupGroupedVisitable::new, true);
 
-        public static Collection from(Node node) {
-            if (node.isGrouped()) {
-                return GROUPED;
-            } else {
-                return SINGLE;
-            }
-        }
+        private final boolean isGroup;
 
         private final Supplier<PostQueryTransformer.SortBy.SortVisitable<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier;
 
-        Collection(Supplier<PostQueryTransformer.SortBy.SortVisitable<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier) {
+        Collection(Supplier<PostQueryTransformer.SortBy.SortVisitable<? extends Node, ? extends PostQueryTransformer.SortBy.SortVisitor<? extends Node>>> comparatorSupplier, boolean isGroup) {
             this.comparatorSupplier = comparatorSupplier;
+            this.isGroup = isGroup;
         }
 
         @SuppressWarnings("unchecked")
         public <N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> PostQueryTransformer.SortBy.SortVisitable<N, V> getVisitable() {
             return (PostQueryTransformer.SortBy.SortVisitable<N, V>) this.comparatorSupplier.get();
+        }
+
+        public boolean isGroup() {
+            return this.isGroup;
         }
 
         static abstract private class RegistryNodeVisitable<N extends Node, V extends PostQueryTransformer.SortBy.SortVisitor<N>> implements PostQueryTransformer.SortBy.SortVisitable<N, V> {
@@ -62,6 +68,13 @@ public interface Node {
 
             private GroupedVisitable() {
                 super(TransactionNode.GroupedTransactionNode.Visitor.SORTINGS);
+            }
+        }
+
+        static class GroupGroupedVisitable extends RegistryNodeVisitable<TransactionNode.GroupedBothWayTransactionNode, TransactionNode.GroupedBothWayTransactionNode.Visitor> {
+
+            private GroupGroupedVisitable() {
+                super(TransactionNode.GroupedBothWayTransactionNode.Visitor.SORTINGS);
             }
         }
     }

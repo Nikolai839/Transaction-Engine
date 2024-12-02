@@ -32,9 +32,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class EngineSettingsGui {
@@ -173,14 +177,22 @@ public class EngineSettingsGui {
             this.sortHighestToLowest = !this.sortHighestToLowest;
         } else {
             List<SortingMethod> methods = new ArrayList<>(Arrays.asList(SortingMethod.values()));
-            if (this.groupBy.equals(GroupBy.NONE)) {
-                methods.removeIf(SortingMethod::isGrouped);
-            }
+
+            Node.Collection collection = getCollectionFromGroup();
+            methods.removeIf(s -> !s.match(collection));
 
             this.sortingMethod = methods.get((this.sortingMethod.ordinal() + 1) % methods.size());
         }
 
         updateSortingItem();
+    }
+
+    private Node.Collection getCollectionFromGroup() {
+        return switch (this.groupBy) {
+            case NONE -> Node.Collection.SINGLE;
+            case TO_USER, FROM_USER -> Node.Collection.GROUPED;
+            case BOTH -> Node.Collection.GROUP_GROUPED;
+        };
     }
 
     private void changePayType(InventoryClickEvent event) {
@@ -468,7 +480,7 @@ public class EngineSettingsGui {
                 this.groupUserNamesMaxBetween = -1;
                 this.groupUserNamesMax = -1;
 
-                if (this.sortingMethod.isGrouped()) {
+                if (this.sortingMethod.match(Node.Collection.GROUPED)) {
                     this.sortingMethod = SortingMethod.BY_TIME;
                 }
             }
@@ -924,12 +936,12 @@ public class EngineSettingsGui {
         sortingItemLore.add(Component.empty());
 
         sortingItemLore.add(Component.text("§7Sorteres efter: §8(Venstreklik)"));
+        Node.Collection collection = getCollectionFromGroup();
         for (SortingMethod method : SortingMethod.values()) {
-            if (method.isGrouped() && this.groupBy.equals(GroupBy.NONE)) {
-                continue;
+            if (method.match(collection)) {
+                String colour = this.sortingMethod == method ? "§e" : "§8";
+                sortingItemLore.add(Component.text(colour + " - " + method.getName()));
             }
-            String colour = this.sortingMethod == method ? "§e" : "§8";
-            sortingItemLore.add(Component.text(colour + " - " + method.getName()));
         }
         sortingItemLore.add(Component.empty());
 
@@ -1035,58 +1047,70 @@ public class EngineSettingsGui {
             }
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
-            Bukkit.broadcastMessage("Got " + query.size());
             if (this.traceModeEnabled) {
                 query = Engine.trace(query);
             }
 
-            Node.Collection collection = Node.Collection.SINGLE;
             EngineQuery<? extends TransactionNode> finalQuery;
             if (!this.groupBy.equals(GroupBy.NONE)) {
-                collection = Node.Collection.GROUPED;
-
-                Function<SingleTransactionNode, String> func;
-                TransactionNode.GroupedTransactionNode.Bound bound;
-                if (this.groupBy == GroupBy.FROM_USER) {
-                    bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
-                    func = SingleTransactionNode::fromUserName;
-                } else if (this.groupBy == GroupBy.TO_USER) {
-                    bound = TransactionNode.GroupedTransactionNode.Bound.TO;
-                    func = SingleTransactionNode::toUserName;
-                } else {
-                    throw new IllegalStateException();
-                }
-
-                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode>> operators = new ArrayList<>();
+                List<PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode.Target, SingleTransactionNode>> operators = new ArrayList<>();
                 if (this.groupUserNamesMax != -1) {
                     operators.add(PostQueryTransformer.GroupBy.GroupOperator.max(this.groupUserNamesMax));
                 }
                 if (this.groupUserNamesMaxBetween != -1) {
                     operators.add(PostQueryTransformer.GroupBy.GroupOperator.maxBetween(SingleTransactionNode::time, this.groupUserNamesMaxBetween, this.groupUserNamesMaxBetweenUnit));
                 }
+                PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode.Target, SingleTransactionNode> operator = PostQueryTransformer.GroupBy.GroupOperator.mix(operators);
 
-                finalQuery = query.transform(
-                        PostQueryTransformer.GroupBy.groupBy(PostQueryTransformer.GroupBy.GroupOperator.mix(operators),
-                        new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>() {
+                if (!this.groupBy.equals(GroupBy.BOTH)) {
+                    Function<SingleTransactionNode, String> func;
+                    TransactionNode.GroupedTransactionNode.Bound bound;
+                    if (this.groupBy == GroupBy.FROM_USER) {
+                        bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
+                        func = SingleTransactionNode::fromUserName;
+                    } else if (this.groupBy == GroupBy.TO_USER) {
+                        bound = TransactionNode.GroupedTransactionNode.Bound.TO;
+                        func = SingleTransactionNode::toUserName;
+                    } else {
+                        throw new IllegalStateException();
+                    }
+                    finalQuery = group(query, operator, bound, func);
+                } else {
+                    finalQuery = query.transform(
+                        PostQueryTransformer.GroupBy.groupBy(operator,
+                        new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, SingleTransactionNode.Target, TransactionNode.GroupedBothWayTransactionNode, String>() {
 
                             @Override
-                            public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
-                                return new TransactionNode.GroupedTransactionNode(nodes, bound);
+                            public TransactionNode.GroupedBothWayTransactionNode collect(Collection<SingleTransactionNode.Target> nodes) {
+                                Collection<SingleTransactionNode.Target> from = nodes.stream().filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.FROM)).collect(Collectors.toList());
+                                Collection<SingleTransactionNode.Target> to = nodes.stream().filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.TO)).collect(Collectors.toList());
+
+                                String user = from.stream().map(Node.Linked::node).map(SingleTransactionNode::fromUserName).findFirst().orElse(
+                                        to.stream().map(Node.Linked::node).map(SingleTransactionNode::toUserName).findFirst().orElse(null)
+                                );
+                                if (user == null) {
+                                    // ?
+                                    throw new IllegalStateException();
+                                }
+
+                                return new TransactionNode.GroupedBothWayTransactionNode(user, from, to);
                             }
 
                             @Override
-                            public String getKey(SingleTransactionNode node) {
-                                return func.apply(node);
+                            public void applyToGroup(SingleTransactionNode node, Map<String, List<SingleTransactionNode.Target>> groups) {
+                                insert(node.toUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.TO, node), groups);
+                                insert(node.fromUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.FROM, node), groups);
                             }
                         })
-                );
+                    );
+                }
             } else {
                 finalQuery = query;
             }
 
-            finalQuery = Engine.doTransformation(collection, this.sortingMethod, finalQuery);
+            finalQuery = Engine.sort(getCollectionFromGroup(), this.sortingMethod, finalQuery);
             if (this.sortHighestToLowest) {
-                finalQuery.transform(PostQueryTransformer.reversed());
+                finalQuery = finalQuery.transform(PostQueryTransformer.reversed());
             }
 
             if (this.limit != -1) {
@@ -1107,8 +1131,27 @@ public class EngineSettingsGui {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private EngineQuery<TransactionNode.GroupedTransactionNode> group(EngineQuery<SingleTransactionNode> query, PostQueryTransformer.GroupBy.GroupOperator<SingleTransactionNode.Target, SingleTransactionNode> operator, TransactionNode.GroupedTransactionNode.Bound bound, Function<SingleTransactionNode, String> keyGenerator) {
+        return query.transform(PostQueryTransformer.GroupBy.groupBy(
+                (group, node) -> operator.checkGroup((List<SingleTransactionNode.Target>) (List<?>) group, node),
+                new PostQueryTransformer.GroupBy.GroupCollector.Direct<SingleTransactionNode, TransactionNode.GroupedTransactionNode, String>() {
+
+                    @Override
+                    public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
+                        return new TransactionNode.GroupedTransactionNode(nodes, bound);
+                    }
+
+                    @Override
+                    public String getKey(SingleTransactionNode node) {
+                        return keyGenerator.apply(node);
+                    }
+                })
+        );
+    }
+
     public enum GroupBy {
-        NONE("ingen"), TO_USER("til-spiller"), FROM_USER("fra-spiller");
+        NONE("ingen"), TO_USER("til spiller"), FROM_USER("fra spiller"), BOTH("begge");
 
         private final String name;
 

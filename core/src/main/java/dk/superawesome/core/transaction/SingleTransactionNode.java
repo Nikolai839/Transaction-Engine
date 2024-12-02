@@ -1,5 +1,6 @@
 package dk.superawesome.core.transaction;
 
+import dk.superawesome.core.Node;
 import dk.superawesome.core.PostQueryTransformer;
 
 import java.time.ZonedDateTime;
@@ -7,7 +8,23 @@ import java.time.chrono.ChronoZonedDateTime;
 import java.util.EnumMap;
 import java.util.function.Function;
 
-public interface SingleTransactionNode extends TransactionNode {
+public interface SingleTransactionNode extends TransactionNode, Node.Linked<SingleTransactionNode>, Comparable<SingleTransactionNode> {
+
+    record Target(GroupedTransactionNode.Bound bound, SingleTransactionNode node) implements TransactionNode, Node.Linked<SingleTransactionNode> {
+
+        @Override
+        public boolean isTraced() {
+            return false;
+        }
+    }
+
+    default SingleTransactionNode node() {
+        return this;
+    }
+
+    default int compareTo(SingleTransactionNode node) {
+        return time().compareTo(node.time());
+    }
 
     ZonedDateTime time();
 
