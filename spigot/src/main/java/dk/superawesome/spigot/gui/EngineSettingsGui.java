@@ -87,6 +87,7 @@ public class EngineSettingsGui {
     private ZonedDateTime timeFrom;
     private ZonedDateTime timeTo;
     private int limit = -1;
+    private boolean operatorAnd = true;
 
     public EngineSettingsGui() {
         this.gui = Gui.gui()
@@ -95,7 +96,7 @@ public class EngineSettingsGui {
                 .disableAllInteractions()
                 .create();
 
-        for (int i : Arrays.asList(7, 8, 16, 17, 25, 26, 34, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52)) {
+        for (int i : Arrays.asList(7, 8, 16, 17, 25, 26, 34, 43, 44, 45, 46, 47, 48, 49, 52)) {
             this.gui.setItem(i, new GuiItem(new ItemStack(Material.STAINED_GLASS_PANE, 1, (short) 15)));
         }
         for (int i : Arrays.asList(9, 10, 11, 12, 13, 14, 15, 27, 28, 29, 30, 31, 32, 33, 39)) {
@@ -168,6 +169,10 @@ public class EngineSettingsGui {
         return this.sortHighestToLowest;
     }
 
+    public boolean isOperatorAnd() {
+        return this.operatorAnd;
+    }
+
     public void open(Player player) {
         this.gui.open(player);
     }
@@ -226,6 +231,11 @@ public class EngineSettingsGui {
         }
 
         updateTypeItem();
+    }
+
+    private void changeOperator() {
+        this.operatorAnd = !operatorAnd;
+        updateOperatorItem();
     }
 
     private void configureTraceMode() {
@@ -720,6 +730,7 @@ public class EngineSettingsGui {
         this.timeFrom = null;
         this.timeTo = null;
         this.limit = -1;
+        this.operatorAnd = true;
 
         updateItems();
     }
@@ -733,6 +744,7 @@ public class EngineSettingsGui {
         updateTypeItem();
         updateGroupItem();
         updateLimitItem();
+        updateOperatorItem();
 
         this.gui.update();
     }
@@ -850,6 +862,23 @@ public class EngineSettingsGui {
         ));
 
         updateExecuteItem();
+    }
+
+    private void updateOperatorItem() {
+        List<Component> operatorItemLore = new ArrayList<>();
+        if (this.operatorAnd) {
+            operatorItemLore.add(Component.text("§7Kræver alle filtre §8(Klik)"));
+        } else {
+            operatorItemLore.add(Component.text("§7Kan have én af alle filtre  §8(Klik)"));
+        }
+
+        this.gui.updateItem(50, new GuiItem(
+                ItemBuilder.from(Material.FLOWER_POT_ITEM)
+                        .name(Component.text("§eVælg filtertjek"))
+                        .glow(this.operatorAnd)
+                        .lore(operatorItemLore)
+                        .build(), __ -> changeOperator()
+        ));
     }
 
     private void updateAmountItem() {
@@ -1057,6 +1086,12 @@ public class EngineSettingsGui {
                 if (!types.isEmpty()) {
                     builder.is(types.toArray(TransactionNode.PayType[]::new));
                 }
+            }
+
+            if (this.operatorAnd) {
+                builder.setOperator(QueryFilter.Operator.and());
+            } else {
+                builder.setOperator(QueryFilter.Operator.or());
             }
 
             EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());

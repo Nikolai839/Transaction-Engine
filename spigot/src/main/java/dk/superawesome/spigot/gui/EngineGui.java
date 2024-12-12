@@ -263,6 +263,12 @@ public class EngineGui<N extends TransactionNode> {
                 }
             }
 
+            if (this.settings.isOperatorAnd()) {
+                newQueryBuilder.setOperator(QueryFilter.Operator.and());
+            } else {
+                newQueryBuilder.setOperator(QueryFilter.Operator.or());
+            }
+
             EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
             if (this.settings.isSortHighestToLowest()) {
                 query = query.transform(PostQueryTransformer.reversed());

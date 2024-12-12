@@ -14,6 +14,8 @@ public class EngineRequest<N extends Node> {
 
         void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter);
 
+        void setOperator(QueryFilter.Operator<N> type);
+
         RESULT build();
     }
 
@@ -31,6 +33,11 @@ public class EngineRequest<N extends Node> {
         }
 
         @Override
+        public void setOperator(QueryFilter.Operator<N> operator) {
+            this.request.setOperator(operator);
+        }
+
+        @Override
         public EngineRequest<N> build() {
             return this.request;
         }
@@ -39,6 +46,8 @@ public class EngineRequest<N extends Node> {
     public static class QueryWrapperBuilder<N extends Node> implements Builder<N, EngineQuery<N>> {
 
         private final EngineQuery<N> query;
+        private final List<QueryFilter<? super N>> filters = new ArrayList<>();
+        private QueryFilter.Operator<N> operator = QueryFilter.Operator.and();
 
         public QueryWrapperBuilder(EngineQuery<N> query) {
             this.query = query;
@@ -46,12 +55,17 @@ public class EngineRequest<N extends Node> {
 
         @Override
         public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
-            this.query.filter(filter);
+            this.filters.add(filter);
+        }
+
+        @Override
+        public void setOperator(QueryFilter.Operator<N> operator) {
+            this.operator = operator;
         }
 
         @Override
         public EngineQuery<N> build() {
-            return this.query;
+            return this.query.filter(this.operator.test(this.filters));
         }
     }
 
@@ -60,12 +74,17 @@ public class EngineRequest<N extends Node> {
     private final DatabaseSettings settings;
     private final DatabaseExecutor<N> executor;
     private final Requester requester;
+    private QueryFilter.Operator<N> operator = QueryFilter.Operator.and();
 
     public EngineRequest(EngineCache<N> cache, DatabaseSettings settings, DatabaseExecutor<N> executor, Requester requester) {
         this.cache = cache;
         this.settings = settings;
         this.executor = executor;
         this.requester = requester;
+    }
+
+    public void setOperator(QueryFilter.Operator<N> operator) {
+        this.operator = operator;
     }
 
     public void removeAllFiltersOf(QueryFilter.FilterType<?, N> type) {
@@ -83,7 +102,7 @@ public class EngineRequest<N extends Node> {
     }
 
     public boolean filter(N node) {
-        return this.filters.stream().allMatch(f -> f.filter().test(node));
+        return this.operator.test(this.filters.stream().map(QueryFilter.FilterData::filter).collect(Collectors.toList())).test(node);
     }
 
     public List<QueryFilter.FilterData<N>> getFilters() {

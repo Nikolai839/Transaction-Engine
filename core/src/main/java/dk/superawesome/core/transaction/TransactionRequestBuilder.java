@@ -84,6 +84,11 @@ public class TransactionRequestBuilder<B extends EngineRequest.Builder<SingleTra
         return this;
     }
 
+    public TransactionRequestBuilder<B, RESULT> setOperator(QueryFilter.Operator<SingleTransactionNode> operator) {
+        builder.setOperator(operator);
+        return this;
+    }
+
     public RESULT build() {
         return builder.build();
     }

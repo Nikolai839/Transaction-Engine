@@ -50,8 +50,8 @@ public class EngineQuery<N extends Node> {
         return this;
     }
 
-    public EngineQuery<N> filter(QueryFilter<? super N> filter) {
-        this.nodes.removeIf(Predicate.not(filter::test));
+    public EngineQuery<N> filter(Predicate<? super N> filter) {
+        this.nodes.removeIf(Predicate.not(filter));
         return this;
     }
 

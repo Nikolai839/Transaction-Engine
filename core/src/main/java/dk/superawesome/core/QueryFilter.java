@@ -4,10 +4,24 @@ import dk.superawesome.core.transaction.SingleTransactionNode;
 import dk.superawesome.core.transaction.TransactionNode;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
 public interface QueryFilter<N extends Node> extends Predicate<N> {
+
+    interface Operator<N extends Node> {
+
+        static <N extends Node> Operator<N> and() {
+            return filters -> n -> filters.stream().allMatch(f -> f.test(n));
+        }
+
+        static <N extends Node> Operator<N> or() {
+            return filters -> n -> filters.stream().anyMatch(f -> f.test(n));
+        }
+
+        Predicate<N> test(List<QueryFilter<? super N>> filters);
+    }
 
     boolean test(N input);
 
