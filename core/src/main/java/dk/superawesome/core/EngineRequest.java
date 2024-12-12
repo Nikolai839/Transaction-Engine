@@ -73,7 +73,9 @@ public class EngineRequest<N extends Node> {
     }
 
     public List<QueryFilter.FilterData<N>> allFiltersOf(QueryFilter.FilterType<?, N> type) {
-        return this.filters.stream().filter(f -> f.type().equals(type)).collect(Collectors.toList());
+        return this.filters.stream()
+                .filter(f -> f.type().equals(type))
+                .collect(Collectors.toList());
     }
 
     public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {

@@ -335,7 +335,7 @@ public class EngineSettingsGui {
                         }
                     }
 
-                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).noneMatch(String::isEmpty)) {
+                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).anyMatch(Predicate.not(String::isEmpty))) {
                         if (!added) {
                             player.sendMessage("§cIngen gyldig spiller valgt!");
                             return Collections.singletonList(SignGUIAction.run(() -> addToUser(player)));
@@ -362,7 +362,7 @@ public class EngineSettingsGui {
                         }
                     }
 
-                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).noneMatch(String::isEmpty)) {
+                    if (Arrays.stream(Arrays.copyOfRange(result.getLines(), 1, 4)).anyMatch(Predicate.not(String::isEmpty))) {
                         if (!added) {
                             player.sendMessage("§cIngen gyldig spiller valgt!");
                             return Collections.singletonList(SignGUIAction.run(() -> addFromUser(player)));
@@ -762,7 +762,13 @@ public class EngineSettingsGui {
         }
 
         if (!this.ignoreTypes.isEmpty()) {
-            filters.add(Component.text("§7Ikke transaktionstype " + this.ignoreTypes.stream().map(TransactionNode.PayType::toString).map(String::toLowerCase).toList().toString().replace("]", "").replace("[", "")));
+            filters.add(Component.text("§7Ikke transaktionstype " + this.ignoreTypes.stream()
+                    .map(TransactionNode.PayType::toString)
+                    .map(String::toLowerCase).toList()
+                    .toString()
+                    .replace("]", "")
+                    .replace("[", "")
+            ));
         } else {
             List<TransactionNode.PayType> types = new ArrayList<>(this.extraTypes);
             if (this.type != null && !types.contains(this.type)) {
@@ -770,7 +776,14 @@ public class EngineSettingsGui {
             }
 
             if (!types.isEmpty()) {
-                filters.add(Component.text("§7Transaktionstype " + types.stream().map(TransactionNode.PayType::toString).map(String::toLowerCase).toList().toString().replace("]", "").replace("[", "")));
+                filters.add(Component.text("§7Transaktionstype " + types.stream()
+                        .map(TransactionNode.PayType::toString)
+                        .map(String::toLowerCase)
+                        .toList()
+                        .toString()
+                        .replace("]", "")
+                        .replace("[", "")
+                ));
             }
         }
 
@@ -1082,12 +1095,24 @@ public class EngineSettingsGui {
 
                             @Override
                             public TransactionNode.GroupedBothWayTransactionNode collect(Collection<SingleTransactionNode.Target> nodes) {
-                                Collection<SingleTransactionNode.Target> from = nodes.stream().filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.FROM)).collect(Collectors.toList());
-                                Collection<SingleTransactionNode.Target> to = nodes.stream().filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.TO)).collect(Collectors.toList());
+                                Collection<SingleTransactionNode.Target> from = nodes.stream()
+                                        .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.FROM))
+                                        .collect(Collectors.toList());
+                                Collection<SingleTransactionNode.Target> to = nodes.stream()
+                                        .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.TO))
+                                        .collect(Collectors.toList());
 
-                                String user = from.stream().map(Node.Linked::node).map(SingleTransactionNode::fromUserName).findFirst().orElse(
-                                        to.stream().map(Node.Linked::node).map(SingleTransactionNode::toUserName).findFirst().orElse(null)
-                                );
+                                String user = from.stream()
+                                        .map(Node.Linked::node)
+                                        .map(SingleTransactionNode::fromUserName)
+                                        .findFirst()
+                                        .orElse(
+                                            to.stream()
+                                                    .map(Node.Linked::node)
+                                                    .map(SingleTransactionNode::toUserName)
+                                                    .findFirst()
+                                                    .orElse(null)
+                                        );
                                 if (user == null) {
                                     // ?
                                     throw new IllegalStateException();

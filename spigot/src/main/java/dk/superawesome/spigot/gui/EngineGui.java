@@ -173,7 +173,7 @@ public class EngineGui<N extends TransactionNode> {
         void clickInspection(Player player, T node);
     }
 
-    private record  SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
+    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
 
         @Override
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
@@ -286,8 +286,13 @@ public class EngineGui<N extends TransactionNode> {
             Optional<SingleTransactionNode.Target> oldestOptional = group.getOldestTransaction();
             oldestOptional.ifPresent(target -> lore.add("§8Siden " + TIME_FORMATTER.format(target.node().time())));
 
-            lore.add("§7" + EMERALD_FORMATTER.format(group.getAmount()) + " emeralder i alt");
-            lore.add("§7" + EMERALD_FORMATTER.format(group.getSum()) + " sum af emeralder i alt");
+
+            if (group.getSum() == group.getAmount() * -1 || group.getSum() == group.getAmount()) {
+                lore.add("§7" + (group.getSum() > 0 ? "+" : "") + EMERALD_FORMATTER.format(group.getSum()) + " emeralder i alt");
+            } else {
+                lore.add("§7" + EMERALD_FORMATTER.format(group.getAmount()) + " emeralder i alt");
+                lore.add("§7" + (group.getSum() > 0 ? "+" : "") + EMERALD_FORMATTER.format(group.getSum()) + " summeret emeralder i alt");
+            }
             lore.add("§7" + group.combine().size() + " transaktioner i alt");
 
             Optional<SingleTransactionNode> highestOptionalTo = group.getHighestTransaction(TransactionNode.GroupedTransactionNode.Bound.TO);
@@ -364,7 +369,10 @@ public class EngineGui<N extends TransactionNode> {
             switch (group.bound()) {
                 case TO:
                     targetFunction = SingleTransactionNode::fromUserName;
-                    String toPlayer = group.nodes().stream().map(SingleTransactionNode::toUserName).findFirst().orElseThrow();
+                    String toPlayer = group.nodes().stream()
+                            .map(SingleTransactionNode::toUserName)
+                            .findFirst()
+                            .orElseThrow(); // no inspection
 
                     meta.setOwner(toPlayer);
                     other = "Fra";
@@ -372,7 +380,10 @@ public class EngineGui<N extends TransactionNode> {
                     break;
                 case FROM:
                     targetFunction = SingleTransactionNode::toUserName;
-                    String fromPlayer = group.nodes().stream().map(SingleTransactionNode::fromUserName).findFirst().orElseThrow();
+                    String fromPlayer = group.nodes().stream()
+                            .map(SingleTransactionNode::fromUserName)
+                            .findFirst()
+                            .orElseThrow(); // no inspection
 
                     meta.setOwner(fromPlayer);
                     other = "Til";

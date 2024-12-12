@@ -31,7 +31,9 @@ public interface TransactionNode extends Node {
 
         @Override
         public java.util.Collection<SingleTransactionNode> nodes() {
-            return combine().stream().map(Node.Linked::node).toList();
+            return combine().stream()
+                    .map(Node.Linked::node)
+                    .toList();
         }
 
         public List<SingleTransactionNode.Target> combine() {
@@ -39,15 +41,22 @@ public interface TransactionNode extends Node {
         }
 
         public double getAmount() {
-            return nodes().stream().mapToDouble(SingleTransactionNode::amount).sum();
+            return nodes().stream()
+                    .mapToDouble(SingleTransactionNode::amount)
+                    .sum();
         }
 
         public double getSum() {
-            return combine().stream().mapToDouble(GroupedBothWayTransactionNode::evaluate).sum();
+            return combine().stream()
+                    .mapToDouble(GroupedBothWayTransactionNode::evaluate)
+                    .sum();
         }
 
         public Optional<SingleTransactionNode> getHighestTransaction(GroupedTransactionNode.Bound bound) {
-            return combine().stream().filter(t -> t.bound().equals(bound)).map(Node.Linked::node).max(Comparator.comparingDouble(SingleTransactionNode::amount));
+            return combine().stream()
+                    .filter(t -> t.bound().equals(bound))
+                    .map(Node.Linked::node)
+                    .max(Comparator.comparingDouble(SingleTransactionNode::amount));
         }
 
         public Optional<SingleTransactionNode.Target> getLatestTransaction() {
@@ -110,7 +119,10 @@ public interface TransactionNode extends Node {
         }
 
         public double getAmount() {
-            return this.nodes.stream().map(SingleTransactionNode::amount).reduce(Double::sum).orElse(0d);
+            return this.nodes.stream()
+                    .map(SingleTransactionNode::amount)
+                    .reduce(Double::sum)
+                    .orElse(0d);
         }
 
         public Optional<SingleTransactionNode> getHighestTransaction() {

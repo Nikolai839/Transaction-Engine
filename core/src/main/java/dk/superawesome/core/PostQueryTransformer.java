@@ -43,15 +43,27 @@ public interface PostQueryTransformer<N extends Node, T extends Node> {
 
         public static <GN extends GroupedNode<?>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, Comparator<T> comparator) {
             return new SortBy<>((o1, o2) -> comparator.compare(
-                    func.apply(nodes.apply(o1).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null)),
-                    func.apply(nodes.apply(o2).stream().max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2))).orElse(null))
+                    func.apply(
+                            nodes.apply(o1).stream()
+                                    .max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2)))
+                                    .orElse(null)),
+                    func.apply(
+                            nodes.apply(o2).stream()
+                                    .max((n1, n2) -> comparator.compare(func.apply(n1), func.apply(n2)))
+                                    .orElse(null))
             ));
         }
 
         public static <GN extends GroupedNode<?>, N extends Node, T> SortBy<GN> sortByGroup(Function<GN, Collection<N>> nodes, Function<N, T> func, BinaryOperator<T> collector, Comparator<T> comparator) {
             return new SortBy<>((o1, o2) -> comparator.compare(
-                    nodes.apply(o1).stream().map(func).reduce(collector).orElse(null),
-                    nodes.apply(o2).stream().map(func).reduce(collector).orElse(null)
+                    nodes.apply(o1).stream()
+                            .map(func)
+                            .reduce(collector)
+                            .orElse(null),
+                    nodes.apply(o2).stream()
+                            .map(func)
+                            .reduce(collector)
+                            .orElse(null)
             ));
         }
 
