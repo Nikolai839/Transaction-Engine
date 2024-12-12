@@ -869,7 +869,7 @@ public class EngineSettingsGui {
         if (this.operatorAnd) {
             operatorItemLore.add(Component.text("§7Kræver alle filtre §8(Klik)"));
         } else {
-            operatorItemLore.add(Component.text("§7Kan have én af alle filtre §8(Klik)"));
+            operatorItemLore.add(Component.text("§7Kræver én af alle filtre §8(Klik)"));
         }
 
         this.gui.updateItem(50, new GuiItem(
