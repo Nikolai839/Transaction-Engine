@@ -939,7 +939,7 @@ public class EngineSettingsGui {
                 amountItemLore.add(Component.text("§7Fra " + this.amountFrom + " emeralder §8(Klik)"));
             }
             if (this.amountTo != -1) {
-                amountItemLore.add(Component.text("§7Fra " + this.amountTo + " emeralder §8(Klik)"));
+                amountItemLore.add(Component.text("§7Til " + this.amountTo + " emeralder §8(Klik)"));
             }
         }
 
