@@ -14,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class EngineOperatorSelectionGui {
 
@@ -60,7 +61,7 @@ public class EngineOperatorSelectionGui {
             if (!this.selections.isEmpty()) {
                 lore.add(Component.empty());
                 lore.add(Component.text("§7Har følgende elementer:"));
-                appendGroupLore(this.selections, lore, 0);
+                appendGroupLore(sortSelections(this.selections), lore, 0);
             }
 
             return ItemBuilder.from(Material.CHEST)
@@ -75,9 +76,27 @@ public class EngineOperatorSelectionGui {
                 if (sel instanceof Single single) {
                     lore.add(Component.text(def + "§8- §7" + getName(single.type())));
                 } else if (sel instanceof Group group) {
-                    lore.add(Component.text(def + "§8Gruppe:"));
-                    appendGroupLore(group.selections(), lore, nested + 1);
+                    if (getGroupSize(group) > 0) {
+                        lore.add(Component.text(def + "§8Gruppe:"));
+                        appendGroupLore(sortSelections(group.selections()), lore, nested + 1);
+                    }
                 }
+            }
+        }
+
+        private List<Selection> sortSelections(List<Selection> selections) {
+            return selections.stream()
+                    .sorted((o1, o2) -> o1 instanceof Group ? (o2 instanceof Group ? 0 : 1) : (o2 instanceof Single ? 0 : -1))
+                    .collect(Collectors.toList());
+        }
+
+        private int getGroupSize(Selection sel) {
+            if (sel instanceof Single) {
+                return 1;
+            } else if (sel instanceof Group group) {
+                return group.selections().stream().mapToInt(this::getGroupSize).sum();
+            } else {
+                throw new IllegalStateException();
             }
         }
 
