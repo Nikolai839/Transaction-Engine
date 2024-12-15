@@ -18,7 +18,7 @@ public class Engine {
     public static <N extends Node> EngineQuery<N> queryFromCache(EngineRequest<N> request, Function<EngineQuery<N>, EngineQuery<N>> callback) throws RequestException {
         try {
             if (request.getCache().isCacheEmpty() && !request.getCache().isRunning()) {
-                return query(request);
+                return query(request, callback);
             }
 
             CompletableFuture<Void> invoker = new CompletableFuture<>();
@@ -41,7 +41,7 @@ public class Engine {
         }
     }
 
-    public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request) throws RequestException {
+    public static <N extends Node> EngineQuery<N> query(EngineRequest<N> request, Function<EngineQuery<N>, EngineQuery<N>> callback) throws RequestException {
         CompletableFuture<Void> invoker = new CompletableFuture<>();
         try {
             request.getCache().start(invoker);
@@ -50,7 +50,11 @@ public class Engine {
 
             invoker.complete(null);
 
-            return query;
+            if (callback != null) {
+                return callback.apply(query);
+            } else {
+                return query;
+            }
         } catch (Exception ex) {
             throw new RequestException(ex);
         }

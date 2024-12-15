@@ -4,10 +4,7 @@ import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class EngineQuery<N extends Node> {
@@ -30,8 +27,8 @@ public class EngineQuery<N extends Node> {
         }
     }
 
-    private final List<Node> initialNodes = new LinkedList<>();
-    private List<N> nodes = new LinkedList<>();
+    private final Deque<Node> initialNodes = new LinkedList<>();
+    private Deque<N> nodes = new LinkedList<>();
 
     public EngineQuery(Collection<N> nodes) {
         this.nodes.addAll(nodes);
@@ -59,7 +56,16 @@ public class EngineQuery<N extends Node> {
     }
 
     public EngineQuery<N> limit(int limit) {
-        this.nodes = this.nodes.subList(0, limit);
+        Deque<N> nodes = new LinkedList<>();
+        for (int i = 0; i <= limit; i++) {
+            N node = this.nodes.poll();
+            if (node == null) {
+                break;
+            }
+            nodes.add(node);
+        }
+
+        this.nodes = nodes;
         return this;
     }
 
@@ -67,9 +73,11 @@ public class EngineQuery<N extends Node> {
         return new EngineQuery<>(transformer.transform(new LinkedList<>(this.nodes)), this.initialNodes);
     }
 
-    public void addNodes(List<N> nodes) {
-        this.nodes.addAll(nodes);
-        this.initialNodes.addAll(nodes);
+    public void addNodes(Collection<N> nodes) {
+        nodes.stream().sorted(Collections.reverseOrder()).forEach(node -> {
+            this.nodes.addFirst(node);
+            this.initialNodes.addFirst(node);
+        });
     }
 
     public boolean isEmpty() {
@@ -80,11 +88,11 @@ public class EngineQuery<N extends Node> {
         return this.nodes.size();
     }
 
-    public List<N> nodes() {
+    public Collection<N> nodes() {
         return this.nodes;
     }
 
-    public List<Node> initialNodes() {
+    public Collection<Node> initialNodes() {
         return this.initialNodes;
     }
 }

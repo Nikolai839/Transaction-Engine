@@ -49,7 +49,7 @@ public class EngineSettingsGui {
         Bukkit.getScheduler().runTaskAsynchronously(TransactionEngine.instance, () -> {
             try {
                 Engine.query(TransactionRequestBuilder.builder(CACHE, TransactionEngine.instance.getSettings(), TransactionEngine.instance.getDatabaseController(), TransactionEngine.instance.getDatabaseController().getRequester())
-                        .build());
+                        .build(), null);
             } catch (Exception ex) {
                 Bukkit.getLogger().log(Level.SEVERE, "Failed to query", ex);
             }
