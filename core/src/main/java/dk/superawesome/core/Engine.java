@@ -6,12 +6,16 @@ import dk.superawesome.core.transaction.SortingMethod;
 import dk.superawesome.core.transaction.TransactionNode;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 public class Engine {
 
-    public static <N extends Node> EngineQuery<N> queryFromCache(EngineRequest<N> request) throws RequestException {
+    public static <N extends Node> EngineQuery<N> queryFromCache(EngineRequest<N> request, Function<EngineQuery<N>, EngineQuery<N>> callback) throws RequestException {
         try {
             if (request.getCache().isCacheEmpty() && !request.getCache().isRunning()) {
                 return query(request);
@@ -25,6 +29,9 @@ public class Engine {
                     request.getExecutor().execute(request.getCache(), request.getSettings(), request.getRequester().getQuery(dateTime))
                             .nodes()
             );
+            if (callback != null) {
+                query = callback.apply(query);
+            }
 
             invoker.complete(null);
 

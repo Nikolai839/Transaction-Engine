@@ -1,9 +1,14 @@
 package dk.superawesome.core.transaction;
 
-import dk.superawesome.core.*;
+import dk.superawesome.core.GroupedNode;
+import dk.superawesome.core.Node;
+import dk.superawesome.core.PostQueryTransformer;
 
 import java.time.chrono.ChronoZonedDateTime;
-import java.util.*;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -17,7 +22,9 @@ public interface TransactionNode extends Node {
 
     boolean isTraced();
 
-    record GroupedBothWayTransactionNode(String username, java.util.Collection<SingleTransactionNode.Target> from, java.util.Collection<SingleTransactionNode.Target> to) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+    record GroupedBothWayTransactionNode(String username, java.util.Collection<SingleTransactionNode.Target> from,
+                                         java.util.Collection<SingleTransactionNode.Target> to,
+                                         boolean traced) implements TransactionNode, GroupedNode<SingleTransactionNode> {
 
         @Override
         public Collection getCollection() {
@@ -26,7 +33,7 @@ public interface TransactionNode extends Node {
 
         @Override
         public boolean isTraced() {
-            return false;
+            return traced;
         }
 
         @Override
@@ -60,14 +67,21 @@ public interface TransactionNode extends Node {
         }
 
         public Optional<SingleTransactionNode.Target> getLatestTransaction() {
-            return combine().stream().max(Comparator.comparing(d -> d.node().time(), ChronoZonedDateTime::compareTo));
+            return combine().stream().max(Comparator.comparing(d -> d.node().time()));
         }
 
         public Optional<SingleTransactionNode.Target> getOldestTransaction() {
-            return combine().stream().min(Comparator.comparing(d -> d.node().time(), ChronoZonedDateTime::compareTo));
+            return combine().stream().min(Comparator.comparing(d -> d.node().time()));
         }
 
-        private static double evaluate(SingleTransactionNode.Target target) {
+        public Optional<SingleTransactionNode> getOldestTransaction(GroupedTransactionNode.Bound bound) {
+            return combine().stream()
+                    .filter(t -> t.bound().equals(bound))
+                    .map(Node.Linked::node)
+                    .min(Comparator.comparing(SingleTransactionNode::time));
+        }
+
+        public static double evaluate(SingleTransactionNode.Target target) {
             double amount = target.node().amount();
             if (target.bound() == GroupedTransactionNode.Bound.FROM) {
                 amount = amount * -1;
@@ -78,6 +92,7 @@ public interface TransactionNode extends Node {
         public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<GroupedBothWayTransactionNode> {
 
             public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<GroupedBothWayTransactionNode, GroupedBothWayTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);
+
             static {
                 SORTINGS.put(SortingMethod.BY_TIME, Visitor::sortByTime);
                 SORTINGS.put(SortingMethod.BY_AMOUNT, Visitor::sortByAmount);
@@ -107,7 +122,8 @@ public interface TransactionNode extends Node {
         }
     }
 
-    record GroupedTransactionNode(java.util.Collection<SingleTransactionNode> nodes, Bound bound) implements TransactionNode, GroupedNode<SingleTransactionNode> {
+    record GroupedTransactionNode(java.util.Collection<SingleTransactionNode> nodes, Bound bound,
+                                  boolean traced) implements TransactionNode, GroupedNode<SingleTransactionNode> {
 
         public enum Bound {
             FROM, TO
@@ -115,7 +131,7 @@ public interface TransactionNode extends Node {
 
         @Override
         public boolean isTraced() {
-            return false;
+            return traced;
         }
 
         public double getAmount() {
@@ -140,6 +156,7 @@ public interface TransactionNode extends Node {
         public static class Visitor implements PostQueryTransformer.SortBy.SortVisitor<GroupedTransactionNode> {
 
             public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<GroupedTransactionNode, GroupedTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);
+
             static {
                 SORTINGS.put(SortingMethod.BY_TIME, Visitor::sortByTime);
                 SORTINGS.put(SortingMethod.BY_AMOUNT, Visitor::sortByAmount);

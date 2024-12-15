@@ -6,8 +6,6 @@ import dk.superawesome.core.Node;
 import dk.superawesome.core.exceptions.RequestException;
 
 import java.sql.SQLException;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 public interface DatabaseExecutor<N extends Node> {
 

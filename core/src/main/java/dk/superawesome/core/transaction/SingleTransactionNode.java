@@ -52,6 +52,10 @@ public interface SingleTransactionNode extends TransactionNode, Node.Linked<Sing
 
     record Traced(SingleTransactionNode unit, double fromUserTrace, double toUserTrace) implements SingleTransactionNode {
 
+        public static Traced cast(SingleTransactionNode node) {
+            return (Traced) node;
+        }
+
         @Override
         public boolean isTraced() {
             return true;
@@ -101,6 +105,7 @@ public interface SingleTransactionNode extends TransactionNode, Node.Linked<Sing
     class Visitor implements PostQueryTransformer.SortBy.SortVisitor<SingleTransactionNode> {
 
         public static final EnumMap<SortingMethod, Function<Visitor, PostQueryTransformer<SingleTransactionNode, SingleTransactionNode>>> SORTINGS = new EnumMap<>(SortingMethod.class);
+
         static {
             SORTINGS.put(SortingMethod.BY_TIME, Visitor::sortByTime);
             SORTINGS.put(SortingMethod.BY_AMOUNT, Visitor::sortByAmount);

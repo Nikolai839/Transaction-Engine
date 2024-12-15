@@ -13,8 +13,6 @@ import java.time.ZonedDateTime;
 
 public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode> {
 
-    private static final ZoneId ZONE_ID = ZoneId.of("Europe/Copenhagen");
-
     public static final String TIME = "time";
     public static final String AMOUNT = "amount";
     public static final String FROM_USER = "from_user";
@@ -23,7 +21,7 @@ public class TransactionNodeFactory implements NodeFactory<SingleTransactionNode
     public static final String TO_USER_PRE_BALANCE = "to_user_pre_balance";
     public static final String PAY_TYPE = "pay_type";
     public static final String EXTRA = "extra";
-
+    private static final ZoneId ZONE_ID = ZoneId.of("Europe/Copenhagen");
     private final String timeKey;
     private final String amountKey;
     private final String fromUserKey;

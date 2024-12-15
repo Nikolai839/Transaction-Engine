@@ -13,14 +13,14 @@ public interface QueryFilter<N extends Node> extends Predicate<N> {
     interface Operator<N extends Node> {
 
         static <N extends Node> Operator<N> and() {
-            return filters -> n -> filters.stream().allMatch(f -> f.test(n));
+            return filters -> n -> filters.stream().map(FilterData::filter).allMatch(f -> f.test(n));
         }
 
         static <N extends Node> Operator<N> or() {
-            return filters -> n -> filters.stream().anyMatch(f -> f.test(n));
+            return filters -> n -> filters.stream().map(FilterData::filter).anyMatch(f -> f.test(n));
         }
 
-        Predicate<N> test(List<QueryFilter<? super N>> filters);
+        Predicate<N> test(List<FilterData<? super N>> filters);
     }
 
     boolean test(N input);

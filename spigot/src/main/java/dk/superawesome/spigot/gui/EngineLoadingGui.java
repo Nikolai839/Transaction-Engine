@@ -16,8 +16,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.LinkedList;
-
 public class EngineLoadingGui implements Listener {
 
     private final Gui gui;

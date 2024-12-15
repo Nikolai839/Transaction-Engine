@@ -61,21 +61,21 @@ public class EngineSettingsGui {
     private static final Pattern USERNAME = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
     private static final ExecutorService THREAD_POOL = Executors.newFixedThreadPool(10);
     private static final BiFunction<Player, Gui, SignGUIAction> SIGN_CALLBACK = (player, gui) -> SignGUIAction.runSync(TransactionEngine.instance, () -> gui.open(player));
-    private static final Map<TimeUnit, String> UNIT_TO_IDENTIFIER = new HashMap<>(){{
-        put (TimeUnit.DAYS, "d");
-        put (TimeUnit.HOURS, "h");
-        put (TimeUnit.MINUTES, "m");
-        put (TimeUnit.SECONDS, "s");
+    private static final Map<TimeUnit, String> UNIT_TO_IDENTIFIER = new HashMap<>() {{
+        put(TimeUnit.DAYS, "d");
+        put(TimeUnit.HOURS, "h");
+        put(TimeUnit.MINUTES, "m");
+        put(TimeUnit.SECONDS, "s");
     }};
 
     private final Gui gui;
 
     private final List<TransactionNode.PayType> extraTypes = new ArrayList<>();
     private final List<TransactionNode.PayType> ignoreTypes = new ArrayList<>();
-    private TransactionNode.PayType type = null;
+    private TransactionNode.PayType type;
     private SortingMethod sortingMethod = SortingMethod.BY_TIME;
     private boolean sortHighestToLowest = true;
-    private boolean traceModeEnabled;
+    private Trace traceMode = Trace.NONE;
     private int groupUserNamesMax = -1;
     private int groupUserNamesMaxBetween = -1;
     private TimeUnit groupUserNamesMaxBetweenUnit;
@@ -87,7 +87,7 @@ public class EngineSettingsGui {
     private ZonedDateTime timeFrom;
     private ZonedDateTime timeTo;
     private int limit = -1;
-    private boolean operatorAnd = true;
+    private QueryFilter.Operator<SingleTransactionNode> operator = QueryFilter.Operator.and();
 
     public EngineSettingsGui() {
         this.gui = Gui.gui()
@@ -117,6 +117,12 @@ public class EngineSettingsGui {
                 ItemBuilder.from(new ItemStack(Material.WOOL, 1, (short) 14))
                         .name(Component.text("§cNulstil indstillinger"))
                         .build(), __ -> resetSettings()));
+
+        this.gui.updateItem(50, new GuiItem(
+                ItemBuilder.from(Material.FLOWER_POT_ITEM)
+                        .name(Component.text("§6Vælg filtertjek"))
+                        .build(), e -> changeOperator((Player) e.getWhoClicked())
+        ));
 
         updateItems();
     }
@@ -169,8 +175,12 @@ public class EngineSettingsGui {
         return this.sortHighestToLowest;
     }
 
-    public boolean isOperatorAnd() {
-        return this.operatorAnd;
+    public QueryFilter.Operator<SingleTransactionNode> getOperator() {
+        return this.operator;
+    }
+
+    public void setOperator(QueryFilter.Operator<SingleTransactionNode> operator) {
+        this.operator = operator;
     }
 
     public void open(Player player) {
@@ -201,9 +211,11 @@ public class EngineSettingsGui {
     }
 
     private void changePayType(InventoryClickEvent event) {
-        multiple: {
+        multiple:
+        {
             if (this.type == null) {
                 this.type = TransactionNode.PayType.PAY;
+                resetOperator();
                 if (!event.isShiftClick()) {
                     break multiple;
                 }
@@ -233,13 +245,33 @@ public class EngineSettingsGui {
         updateTypeItem();
     }
 
-    private void changeOperator() {
-        this.operatorAnd = !operatorAnd;
-        updateOperatorItem();
+    private void changeOperator(Player player) {
+        int i = 0;
+        if (!this.toUserNames.isEmpty()) {
+            i++;
+        }
+        if (!this.fromUserNames.isEmpty()) {
+            i++;
+        }
+        if (this.amountTo != -1 || this.amountFrom != -1) {
+            i++;
+        }
+        if (this.timeTo != null || this.timeFrom != null) {
+            i++;
+        }
+        if (this.type != null) {
+            i++;
+        }
+
+        if (i > 1) {
+            new EngineOperatorSelectionGui(this).open(player);
+        } else {
+            player.sendMessage("§cDu har ikke valgt nok filtre til at gøre dette!");
+        }
     }
 
-    private void configureTraceMode() {
-        this.traceModeEnabled = !this.traceModeEnabled;
+    private void changeTraceMode() {
+        this.traceMode = Trace.values()[(this.traceMode.ordinal() + 1) % Trace.values().length];
         updateTraceModeItem();
     }
 
@@ -283,6 +315,7 @@ public class EngineSettingsGui {
     private void removeFromUserName(String user) {
         if (this.fromUserNames.contains(user)) {
             this.fromUserNames.remove(user);
+            resetOperator();
             updateUsers();
         }
     }
@@ -290,6 +323,7 @@ public class EngineSettingsGui {
     private void removeToUserName(String user) {
         if (this.toUserNames.contains(user)) {
             this.toUserNames.remove(user);
+            resetOperator();
             updateUsers();
         }
     }
@@ -340,8 +374,12 @@ public class EngineSettingsGui {
                     boolean added = false;
                     for (String line : Arrays.copyOfRange(result.getLines(), 1, 4)) {
                         if (!line.isEmpty() && isValidUser(line) && this.toUserNames.stream().noneMatch(line::equalsIgnoreCase)) {
-                            this.toUserNames.add(line);
                             added = true;
+
+                            if (this.toUserNames.isEmpty()) {
+                                resetOperator();
+                            }
+                            this.toUserNames.add(line);
                         }
                     }
 
@@ -367,8 +405,12 @@ public class EngineSettingsGui {
                     boolean added = false;
                     for (String line : Arrays.copyOfRange(result.getLines(), 1, 4)) {
                         if (!line.isEmpty() && isValidUser(line) && this.fromUserNames.stream().noneMatch(line::equalsIgnoreCase)) {
-                            this.fromUserNames.add(line);
                             added = true;
+
+                            if (this.fromUserNames.isEmpty()) {
+                                resetOperator();
+                            }
+                            this.fromUserNames.add(line);
                         }
                     }
 
@@ -442,7 +484,8 @@ public class EngineSettingsGui {
                                     unitString = parts[1];
                                 }
 
-                                parse: {
+                                parse:
+                                {
                                     int magnitude;
                                     try {
                                         magnitude = Integer.parseInt(magnitudeString);
@@ -511,6 +554,10 @@ public class EngineSettingsGui {
                     String toString = result.getLine(3);
 
                     if (fromString.isEmpty() && toString.isEmpty()) {
+                        if (this.amountTo != -1 || this.amountFrom != -1) {
+                            resetOperator();
+                        }
+
                         this.amountFrom = -1;
                         this.amountTo = -1;
                         updateAmountItem();
@@ -518,6 +565,9 @@ public class EngineSettingsGui {
                     }
 
                     try {
+                        double prevFrom = this.amountFrom;
+                        double prevTo =  this.amountTo;
+
                         double from = -1;
                         double to = -1;
 
@@ -552,6 +602,9 @@ public class EngineSettingsGui {
                             this.amountTo = -1;
                         }
 
+                        if (prevFrom == -1 || prevTo == -1) {
+                            resetOperator();
+                        }
                         updateAmountItem();
 
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
@@ -581,6 +634,10 @@ public class EngineSettingsGui {
                     String toString = result.getLine(3);
 
                     if (fromString.isEmpty() && toString.isEmpty()) {
+                        if (this.timeFrom != null || this.timeTo != null) {
+                            resetOperator();
+                        }
+
                         this.timeFrom = null;
                         this.timeTo = null;
                         updateTimeItem();
@@ -588,6 +645,9 @@ public class EngineSettingsGui {
                     }
 
                     try {
+                        ZonedDateTime prevFrom = this.timeFrom;
+                        ZonedDateTime prevTo =  this.timeTo;
+
                         LocalDateTime from = null;
                         LocalDateTime to = null;
 
@@ -618,6 +678,9 @@ public class EngineSettingsGui {
                             this.timeTo = null;
                         }
 
+                        if (prevFrom == null || prevTo == null) {
+                            resetOperator();
+                        }
                         updateTimeItem();
 
                         return Collections.singletonList(SIGN_CALLBACK.apply(player, gui));
@@ -718,7 +781,7 @@ public class EngineSettingsGui {
         this.type = null;
         this.sortingMethod = SortingMethod.BY_TIME;
         this.sortHighestToLowest = true;
-        this.traceModeEnabled = false;
+        this.traceMode = Trace.NONE;
         this.groupUserNamesMax = -1;
         this.groupBy = GroupBy.NONE;
         this.groupUserNamesMaxBetween = -1;
@@ -730,9 +793,13 @@ public class EngineSettingsGui {
         this.timeFrom = null;
         this.timeTo = null;
         this.limit = -1;
-        this.operatorAnd = true;
+        resetOperator();
 
         updateItems();
+    }
+
+    private void resetOperator() {
+        this.operator = QueryFilter.Operator.and();
     }
 
     private void updateItems() {
@@ -744,7 +811,6 @@ public class EngineSettingsGui {
         updateTypeItem();
         updateGroupItem();
         updateLimitItem();
-        updateOperatorItem();
 
         this.gui.update();
     }
@@ -824,8 +890,8 @@ public class EngineSettingsGui {
             }
         }
 
-        if (this.traceModeEnabled) {
-            executeItemLore.add(Component.text("§7Sporingstilstand slået til"));
+        if (!this.traceMode.equals(Trace.NONE)) {
+            executeItemLore.add(Component.text("§7Sporingstilstand " + this.traceMode.getName()));
         }
 
         executeItemLore.add(Component.text("§7Sorteres efter " + this.sortingMethod.getName()));
@@ -856,29 +922,12 @@ public class EngineSettingsGui {
 
         this.gui.updateItem(51, new GuiItem(
                 ItemBuilder.from(Material.STICK)
-                        .name(Component.text("§eVælg grænse"))
+                        .name(Component.text("§6Vælg grænse"))
                         .lore(limitItemLore)
                         .build(), event -> configureLimit((Player) event.getWhoClicked())
         ));
 
         updateExecuteItem();
-    }
-
-    private void updateOperatorItem() {
-        List<Component> operatorItemLore = new ArrayList<>();
-        if (this.operatorAnd) {
-            operatorItemLore.add(Component.text("§7Kræver alle filtre §8(Klik)"));
-        } else {
-            operatorItemLore.add(Component.text("§7Kræver én af alle filtre §8(Klik)"));
-        }
-
-        this.gui.updateItem(50, new GuiItem(
-                ItemBuilder.from(Material.FLOWER_POT_ITEM)
-                        .name(Component.text("§eVælg filtertjek"))
-                        .glow(this.operatorAnd)
-                        .lore(operatorItemLore)
-                        .build(), __ -> changeOperator()
-        ));
     }
 
     private void updateAmountItem() {
@@ -926,12 +975,20 @@ public class EngineSettingsGui {
     }
 
     private void updateTraceModeItem() {
+        List<Component> traceModeItemLore = new ArrayList<>();
+
+        traceModeItemLore.add(Component.text("§7Valgt sporing: §8(Klik)"));
+        for (Trace trace : Trace.values()) {
+            String colour = this.traceMode.equals(trace) ? "§e" : "§8";
+            traceModeItemLore.add(Component.text(colour + " - " + trace.getName()));
+        }
+
         this.gui.updateItem(41, new GuiItem(ItemBuilder.from(Material.LEATHER_BOOTS)
                 .name(Component.text("§6Sporingstilstand"))
-                .lore(Component.text((this.traceModeEnabled ? "§7Slået til" : "§7Slået fra") + " §8(Klik)"))
-                .glow(this.traceModeEnabled)
+                .lore(traceModeItemLore)
+                .glow(!this.traceMode.equals(Trace.NONE))
                 .flags(ItemFlag.HIDE_ATTRIBUTES)
-                .build(), __ -> configureTraceMode()));
+                .build(), __ -> changeTraceMode()));
 
         updateExecuteItem();
     }
@@ -1011,8 +1068,8 @@ public class EngineSettingsGui {
         groupItemLore.add(Component.empty());
 
         groupItemLore.add(Component.text("§7Valgt gruppering: §8(Klik)"));
-        for (GroupBy groupBy : GroupBy.values()){
-            String colour = this.groupBy == groupBy ? "§e" : "§8";
+        for (GroupBy groupBy : GroupBy.values()) {
+            String colour = this.groupBy.equals(groupBy) ? "§e" : "§8";
             groupItemLore.add(Component.text(colour + " - " + groupBy.getName()));
         }
 
@@ -1088,14 +1145,14 @@ public class EngineSettingsGui {
                 }
             }
 
-            if (this.operatorAnd) {
-                builder.setOperator(QueryFilter.Operator.and());
-            } else {
-                builder.setOperator(QueryFilter.Operator.or());
-            }
+            builder.setOperator(this.operator);
 
-            EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build());
-            if (this.traceModeEnabled) {
+            Function<EngineQuery<SingleTransactionNode>, EngineQuery<SingleTransactionNode>> queryCallback = null;
+            if (this.traceMode.equals(Trace.BEFORE_FILTER)) {
+                queryCallback = Engine::trace;
+            }
+            EngineQuery<SingleTransactionNode> query = Engine.queryFromCache(builder.build(), queryCallback);
+            if (this.traceMode.equals(Trace.AFTER_FILTER)) {
                 query = Engine.trace(query);
             }
 
@@ -1125,43 +1182,43 @@ public class EngineSettingsGui {
                     finalQuery = group(query, operator, bound, func);
                 } else {
                     finalQuery = query.transform(
-                        PostQueryTransformer.GroupBy.groupBy(operator,
-                        new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, SingleTransactionNode.Target, TransactionNode.GroupedBothWayTransactionNode, String>() {
+                            PostQueryTransformer.GroupBy.groupBy(operator,
+                                    new PostQueryTransformer.GroupBy.GroupCollector<SingleTransactionNode, SingleTransactionNode.Target, TransactionNode.GroupedBothWayTransactionNode, String>() {
 
-                            @Override
-                            public TransactionNode.GroupedBothWayTransactionNode collect(Collection<SingleTransactionNode.Target> nodes) {
-                                Collection<SingleTransactionNode.Target> from = nodes.stream()
-                                        .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.FROM))
-                                        .collect(Collectors.toList());
-                                Collection<SingleTransactionNode.Target> to = nodes.stream()
-                                        .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.TO))
-                                        .collect(Collectors.toList());
+                                        @Override
+                                        public TransactionNode.GroupedBothWayTransactionNode collect(Collection<SingleTransactionNode.Target> nodes) {
+                                            Collection<SingleTransactionNode.Target> from = nodes.stream()
+                                                    .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.FROM))
+                                                    .collect(Collectors.toList());
+                                            Collection<SingleTransactionNode.Target> to = nodes.stream()
+                                                    .filter(t -> t.bound().equals(TransactionNode.GroupedTransactionNode.Bound.TO))
+                                                    .collect(Collectors.toList());
 
-                                String user = from.stream()
-                                        .map(Node.Linked::node)
-                                        .map(SingleTransactionNode::fromUserName)
-                                        .findFirst()
-                                        .orElse(
-                                            to.stream()
+                                            String user = from.stream()
                                                     .map(Node.Linked::node)
-                                                    .map(SingleTransactionNode::toUserName)
+                                                    .map(SingleTransactionNode::fromUserName)
                                                     .findFirst()
-                                                    .orElse(null)
-                                        );
-                                if (user == null) {
-                                    // ?
-                                    throw new IllegalStateException();
-                                }
+                                                    .orElse(
+                                                            to.stream()
+                                                                    .map(Node.Linked::node)
+                                                                    .map(SingleTransactionNode::toUserName)
+                                                                    .findFirst()
+                                                                    .orElse(null)
+                                                    );
+                                            if (user == null) {
+                                                // ?
+                                                throw new IllegalStateException();
+                                            }
 
-                                return new TransactionNode.GroupedBothWayTransactionNode(user, from, to);
-                            }
+                                            return new TransactionNode.GroupedBothWayTransactionNode(user, from, to, !traceMode.equals(Trace.NONE));
+                                        }
 
-                            @Override
-                            public void applyToGroup(SingleTransactionNode node, Map<String, List<SingleTransactionNode.Target>> groups) {
-                                insert(node.toUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.TO, node), groups);
-                                insert(node.fromUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.FROM, node), groups);
-                            }
-                        })
+                                        @Override
+                                        public void applyToGroup(SingleTransactionNode node, Map<String, List<SingleTransactionNode.Target>> groups) {
+                                            insert(node.toUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.TO, node), groups);
+                                            insert(node.fromUserName(), new SingleTransactionNode.Target(TransactionNode.GroupedTransactionNode.Bound.FROM, node), groups);
+                                        }
+                                    })
                     );
                 }
             } else {
@@ -1199,7 +1256,7 @@ public class EngineSettingsGui {
 
                     @Override
                     public TransactionNode.GroupedTransactionNode collect(Collection<SingleTransactionNode> nodes) {
-                        return new TransactionNode.GroupedTransactionNode(nodes, bound);
+                        return new TransactionNode.GroupedTransactionNode(nodes, bound, !traceMode.equals(Trace.NONE));
                     }
 
                     @Override
@@ -1216,6 +1273,20 @@ public class EngineSettingsGui {
         private final String name;
 
         GroupBy(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return this.name;
+        }
+    }
+
+    public enum Trace {
+        NONE("ingen"), BEFORE_FILTER("før filtre"), AFTER_FILTER("efter filtre");
+
+        private final String name;
+
+        Trace(String name) {
             this.name = name;
         }
 

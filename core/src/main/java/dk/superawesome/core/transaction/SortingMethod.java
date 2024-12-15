@@ -9,8 +9,7 @@ public enum SortingMethod {
     BY_TIME("tidspunkt", Holder.ALL),
     BY_AMOUNT("beløb", Holder.ALL),
     BY_SUM("grupperet beløb sum", Predicate.isEqual(Node.Collection.GROUP_GROUPED)),
-    GROUPED_AMOUNT("grupperet antal", Node.Collection::isGroup)
-    ;
+    GROUPED_AMOUNT("grupperet antal", Node.Collection::isGroup);
 
     private static class Holder {
         private static final Predicate<Node.Collection> ALL = t -> true;

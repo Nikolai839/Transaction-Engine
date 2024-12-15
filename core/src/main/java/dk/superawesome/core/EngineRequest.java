@@ -46,7 +46,7 @@ public class EngineRequest<N extends Node> {
     public static class QueryWrapperBuilder<N extends Node> implements Builder<N, EngineQuery<N>> {
 
         private final EngineQuery<N> query;
-        private final List<QueryFilter<? super N>> filters = new ArrayList<>();
+        private final List<QueryFilter.FilterData<? super N>> filters = new ArrayList<>();
         private QueryFilter.Operator<N> operator = QueryFilter.Operator.and();
 
         public QueryWrapperBuilder(EngineQuery<N> query) {
@@ -55,7 +55,7 @@ public class EngineRequest<N extends Node> {
 
         @Override
         public void addFilter(QueryFilter.FilterType<?, ? super N> type, QueryFilter<? super N> filter) {
-            this.filters.add(filter);
+            this.filters.add(new QueryFilter.FilterData<>(type, filter));
         }
 
         @Override
@@ -69,7 +69,7 @@ public class EngineRequest<N extends Node> {
         }
     }
 
-    private final List<QueryFilter.FilterData<N>> filters = new ArrayList<>();
+    private final List<QueryFilter.FilterData<? super N>> filters = new ArrayList<>();
     private final EngineCache<N> cache;
     private final DatabaseSettings settings;
     private final DatabaseExecutor<N> executor;
@@ -91,7 +91,7 @@ public class EngineRequest<N extends Node> {
         this.filters.removeIf(f -> f.type().equals(type));
     }
 
-    public List<QueryFilter.FilterData<N>> allFiltersOf(QueryFilter.FilterType<?, N> type) {
+    public List<QueryFilter.FilterData<? super N>> allFiltersOf(QueryFilter.FilterType<?, N> type) {
         return this.filters.stream()
                 .filter(f -> f.type().equals(type))
                 .collect(Collectors.toList());
@@ -102,10 +102,10 @@ public class EngineRequest<N extends Node> {
     }
 
     public boolean filter(N node) {
-        return this.operator.test(this.filters.stream().map(QueryFilter.FilterData::filter).collect(Collectors.toList())).test(node);
+        return this.operator.test(this.filters).test(node);
     }
 
-    public List<QueryFilter.FilterData<N>> getFilters() {
+    public List<QueryFilter.FilterData<? super N>> getFilters() {
         return this.filters;
     }
 

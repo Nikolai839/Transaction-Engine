@@ -94,9 +94,12 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         return switch (node.getCollection()) {
-            case SINGLE -> this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings, node.isTraced());
-            case GROUPED -> this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
-            case GROUP_GROUPED -> this.visitor = (TransactionVisitor<N>) new GroupGroupedTransactionVisitor((QueryContext<TransactionNode.GroupedBothWayTransactionNode, SingleTransactionNode>) this.context, this.settings);
+            case SINGLE ->
+                    this.visitor = (TransactionVisitor<N>) new SingleTransactionVisitor((QueryContext<SingleTransactionNode, ?>) this.context, this.settings);
+            case GROUPED ->
+                    this.visitor = (TransactionVisitor<N>) new GroupedTransactionVisitor((QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode>) this.context, this.settings);
+            case GROUP_GROUPED ->
+                    this.visitor = (TransactionVisitor<N>) new GroupGroupedTransactionVisitor((QueryContext<TransactionNode.GroupedBothWayTransactionNode, SingleTransactionNode>) this.context, this.settings);
         };
     }
 
@@ -173,7 +176,7 @@ public class EngineGui<N extends TransactionNode> {
         void clickInspection(Player player, T node);
     }
 
-    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings, boolean isTraced) implements TransactionVisitor<SingleTransactionNode>  {
+    private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode> {
 
         @Override
         public void applyToItem(SingleTransactionNode node, ItemStack item, int index) {
@@ -194,7 +197,7 @@ public class EngineGui<N extends TransactionNode> {
                 lore.add("§7Ekstra: " + node.extra());
             }
 
-            if (isTraced) {
+            if (node.isTraced()) {
                 lore.add("");
                 lore.add("§8Sporet efter:");
 
@@ -263,11 +266,7 @@ public class EngineGui<N extends TransactionNode> {
                 }
             }
 
-            if (this.settings.isOperatorAnd()) {
-                newQueryBuilder.setOperator(QueryFilter.Operator.and());
-            } else {
-                newQueryBuilder.setOperator(QueryFilter.Operator.or());
-            }
+            newQueryBuilder.setOperator(this.settings.getOperator());
 
             EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
             if (this.settings.isSortHighestToLowest()) {
@@ -292,14 +291,54 @@ public class EngineGui<N extends TransactionNode> {
             Optional<SingleTransactionNode.Target> oldestOptional = group.getOldestTransaction();
             oldestOptional.ifPresent(target -> lore.add("§8Siden " + TIME_FORMATTER.format(target.node().time())));
 
-
-            if (group.getSum() == group.getAmount() * -1 || group.getSum() == group.getAmount()) {
+            if (Math.abs(group.getSum()) == Math.abs(group.getAmount())) {
                 lore.add("§7" + (group.getSum() > 0 ? "+" : "") + EMERALD_FORMATTER.format(group.getSum()) + " emeralder i alt");
             } else {
                 lore.add("§7" + EMERALD_FORMATTER.format(group.getAmount()) + " emeralder i alt");
                 lore.add("§7" + (group.getSum() > 0 ? "+" : "") + EMERALD_FORMATTER.format(group.getSum()) + " summeret emeralder i alt");
             }
             lore.add("§7" + group.combine().size() + " transaktioner i alt");
+
+            trace:
+            {
+                if (group.isTraced()) {
+                    Optional<SingleTransactionNode> oldestTo = group.getOldestTransaction(TransactionNode.GroupedTransactionNode.Bound.TO);
+                    Optional<SingleTransactionNode> oldestFrom = group.getOldestTransaction(TransactionNode.GroupedTransactionNode.Bound.FROM);
+
+                    SingleTransactionNode oldest;
+                    TransactionNode.GroupedTransactionNode.Bound bound;
+                    if (oldestTo.isEmpty() && oldestFrom.isEmpty()) {
+                        break trace;
+                    } else if (oldestTo.isPresent() && oldestFrom.isEmpty()) {
+                        oldest = oldestTo.get();
+                        bound = TransactionNode.GroupedTransactionNode.Bound.TO;
+                    } else if (oldestTo.isEmpty()) {
+                        oldest = oldestFrom.get();
+                        bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
+                    } else {
+                        int compared = oldestTo.get().compareTo(oldestFrom.get());
+                        if (compared < 0) {
+                            oldest = oldestTo.get();
+                            bound = TransactionNode.GroupedTransactionNode.Bound.TO;
+                        } else {
+                            oldest = oldestFrom.get();
+                            bound = TransactionNode.GroupedTransactionNode.Bound.FROM;
+                        }
+                    }
+
+                    SingleTransactionNode.Traced tracedNode = SingleTransactionNode.Traced.cast(oldest);
+                    double traced = switch (bound) {
+                        case TO -> tracedNode.toUserTrace();
+                        case FROM -> tracedNode.fromUserTrace();
+                    };
+                    traced += TransactionNode.GroupedBothWayTransactionNode.evaluate(new SingleTransactionNode.Target(bound, oldest));
+                    traced -= group.getSum();
+
+                    lore.add("");
+                    lore.add("§8Sporet yderligere:");
+                    lore.add("§7" + (traced > 0 ? "+" : "") + EMERALD_FORMATTER.format(traced) + " emeralder");
+                }
+            }
 
             Optional<SingleTransactionNode> highestOptionalTo = group.getHighestTransaction(TransactionNode.GroupedTransactionNode.Bound.TO);
             Optional<SingleTransactionNode> highestOptionalFrom = group.getHighestTransaction(TransactionNode.GroupedTransactionNode.Bound.FROM);
