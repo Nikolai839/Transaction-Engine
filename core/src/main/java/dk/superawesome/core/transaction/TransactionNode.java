@@ -17,7 +17,7 @@ public interface TransactionNode extends Node {
     String CONSOLE = "CONSOLE";
 
     enum PayType {
-        PAY, CHESTSHOP, SERVERSTORE, AFGIFT, GIVE, TAKE, AREASHOP, SERVERMARKET
+        PAY, CHESTSHOP, SERVERSTORE, AFGIFT, GIVE, TAKE, AREASHOP, SERVERMARKET, MECHANICS
     }
 
     boolean isTraced();
