@@ -196,7 +196,7 @@ public class EngineSettingsGui {
             Node.Collection collection = getCollectionFromGroup();
             methods.removeIf(s -> !s.match(collection));
 
-            this.sortingMethod = methods.get((this.sortingMethod.ordinal() + 1) % methods.size());
+            this.sortingMethod = methods.get((methods.indexOf(this.sortingMethod) + 1) % methods.size());
         }
 
         updateSortingItem();
