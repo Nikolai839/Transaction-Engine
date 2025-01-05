@@ -7,6 +7,7 @@ import dk.superawesome.core.*;
 import dk.superawesome.core.transaction.SingleTransactionNode;
 import dk.superawesome.core.transaction.TransactionNode;
 import dk.superawesome.core.transaction.TransactionRequestBuilder;
+import dk.superawesome.spigot.TransactionEngine;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -79,11 +80,13 @@ public class EngineGui<N extends TransactionNode> {
         displayNodes();
     }
 
-    public void open(Player player) {
+    public boolean open(Player player) {
         if (!this.context.query().isEmpty()) {
             this.gui.open(player);
+            return true;
         } else {
             player.sendMessage("§cDenne transaktionsforespørgsel er tom!");
+            return false;
         }
     }
 
@@ -122,7 +125,7 @@ public class EngineGui<N extends TransactionNode> {
                 visitor.applyToItem(node, item, f);
 
                 int slot = (c - scrolledDown) * 9 + i;
-                this.gui.setItem(slot, new GuiItem(item, event -> this.visitor.clickInspection((Player) event.getWhoClicked(), node)));
+                this.gui.setItem(slot, new GuiItem(item, event -> this.visitor.clickInspection((Player) event.getWhoClicked(), this, node)));
             }
 
             f++;
@@ -173,7 +176,7 @@ public class EngineGui<N extends TransactionNode> {
 
         void applyToItem(T node, ItemStack item, int index);
 
-        void clickInspection(Player player, T node);
+        void clickInspection(Player player, EngineGui<T> gui, T node);
     }
 
     private record SingleTransactionVisitor(QueryContext<SingleTransactionNode, ?> context, EngineSettingsGui settings) implements TransactionVisitor<SingleTransactionNode> {
@@ -233,48 +236,58 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         @Override
-        public void clickInspection(Player player, SingleTransactionNode node) {
-            EngineQuery<SingleTransactionNode> buffer = TransactionRequestBuilder.wrap(new EngineQuery<>(this.context.query(), false))
-                    .from(node.time())
-                    .from(node.toUserName())
-                    .build();
+        public void clickInspection(Player player, EngineGui<SingleTransactionNode> gui, SingleTransactionNode node) {
+            EngineLoadingGui loadingGui = new EngineLoadingGui();
+            loadingGui.open(player);
+            Bukkit.getScheduler().runTaskAsynchronously(TransactionEngine.instance, () -> {
+                EngineQuery<SingleTransactionNode> buffer = TransactionRequestBuilder.wrap(new EngineQuery<>(this.context.query(), false))
+                        .from(node.time())
+                        .from(node.toUserName())
+                        .build();
 
-            TransactionRequestBuilder<EngineRequest.QueryWrapperBuilder<SingleTransactionNode>, EngineQuery<SingleTransactionNode>> newQueryBuilder = TransactionRequestBuilder.wrap(new EngineQuery<>(buffer.nodes()));
-            if (this.settings.getAmountFrom() != -1) {
-                newQueryBuilder.from(this.settings.getAmountFrom());
-            }
-
-            if (this.settings.getAmountTo() != -1) {
-                newQueryBuilder.to(this.settings.getAmountTo());
-            }
-
-            if (this.settings.getTimeTo() != null) {
-                newQueryBuilder.to(this.settings.getTimeTo());
-            }
-
-            if (!this.settings.getIgnorePayTypes().isEmpty()) {
-                newQueryBuilder.isNot(this.settings.getIgnorePayTypes().toArray(TransactionNode.PayType[]::new));
-            } else {
-                List<TransactionNode.PayType> types = new ArrayList<>(this.settings.getExtraPayTypes());
-                TransactionNode.PayType current = this.settings.getPayType();
-                if (current != null && !types.contains(current)) {
-                    types.add(current);
+                TransactionRequestBuilder<EngineRequest.QueryWrapperBuilder<SingleTransactionNode>, EngineQuery<SingleTransactionNode>> newQueryBuilder = TransactionRequestBuilder.wrap(new EngineQuery<>(buffer.nodes()));
+                if (this.settings.getAmountFrom() != -1) {
+                    newQueryBuilder.from(this.settings.getAmountFrom());
                 }
 
-                if (!types.isEmpty()) {
-                    newQueryBuilder.is(types.toArray(TransactionNode.PayType[]::new));
+                if (this.settings.getAmountTo() != -1) {
+                    newQueryBuilder.to(this.settings.getAmountTo());
                 }
-            }
 
-            newQueryBuilder.setOperator(this.settings.getOperator());
+                if (this.settings.getTimeTo() != null) {
+                    newQueryBuilder.to(this.settings.getTimeTo());
+                }
 
-            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
-            if (this.settings.isSortHighestToLowest()) {
-                query = query.transform(PostQueryTransformer.reversed());
-            }
+                if (!this.settings.getIgnorePayTypes().isEmpty()) {
+                    newQueryBuilder.isNot(this.settings.getIgnorePayTypes().toArray(TransactionNode.PayType[]::new));
+                } else {
+                    List<TransactionNode.PayType> types = new ArrayList<>(this.settings.getExtraPayTypes());
+                    TransactionNode.PayType current = this.settings.getPayType();
+                    if (current != null && !types.contains(current)) {
+                        types.add(current);
+                    }
 
-            new EngineGui<>(query, this.context, this.settings)
-                    .open(player);
+                    if (!types.isEmpty()) {
+                        newQueryBuilder.is(types.toArray(TransactionNode.PayType[]::new));
+                    }
+                }
+
+                newQueryBuilder.setOperator(this.settings.getOperator());
+
+                EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQueryBuilder.build());
+                if (this.settings.isSortHighestToLowest()) {
+                    query = query.transform(PostQueryTransformer.reversed());
+                }
+
+                if (!loadingGui.isTaskCancelled()) {
+                    EngineQuery<SingleTransactionNode> finalQuery = query;
+                    Bukkit.getScheduler().runTask(TransactionEngine.instance, () -> {
+                        if (!new EngineGui<>(finalQuery, this.context, this.settings).open(player)) {
+                            gui.open(player);
+                        }
+                    });
+                }
+            });
         }
     }
 
@@ -390,17 +403,31 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         @Override
-        public void clickInspection(Player player, TransactionNode.GroupedBothWayTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.query().initialNodes());
+        public void clickInspection(Player player, EngineGui<TransactionNode.GroupedBothWayTransactionNode> gui, TransactionNode.GroupedBothWayTransactionNode node) {
+            clickGroupedInspection(this.context, this.settings, player, gui, node);
+        }
+    }
 
-            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery);
-            if (this.settings.isSortHighestToLowest()) {
+    private static <N extends TransactionNode, GN extends GroupedNode<N> & TransactionNode> void clickGroupedInspection(EngineGui.QueryContext<GN, N> context, EngineSettingsGui settings, Player player, EngineGui<GN> gui, GN group) {
+        EngineLoadingGui loadingGui = new EngineLoadingGui();
+        loadingGui.open(player);
+        Bukkit.getScheduler().runTaskAsynchronously(TransactionEngine.instance, () -> {
+            EngineQuery<N> query = new EngineQuery<>(group.nodes(), context.query().initialNodes());
+
+            query = Engine.sort(Node.Collection.SINGLE, settings.getSortingMethod(), query);
+            if (settings.isSortHighestToLowest()) {
                 query = query.transform(PostQueryTransformer.reversed());
             }
 
-            new EngineGui<>(query, this.context, this.settings)
-                    .open(player);
-        }
+            if (!loadingGui.isTaskCancelled()) {
+                EngineQuery<N> finalQuery = query;
+                Bukkit.getScheduler().runTask(TransactionEngine.instance, () -> {
+                    if (!new EngineGui<>(finalQuery, context, settings).open(player)) {
+                        gui.open(player);
+                    }
+                });
+            }
+        });
     }
 
     private record GroupedTransactionVisitor(QueryContext<TransactionNode.GroupedTransactionNode, SingleTransactionNode> context, EngineSettingsGui settings) implements TransactionVisitor<TransactionNode.GroupedTransactionNode> {
@@ -477,16 +504,8 @@ public class EngineGui<N extends TransactionNode> {
         }
 
         @Override
-        public void clickInspection(Player player, TransactionNode.GroupedTransactionNode node) {
-            EngineQuery<SingleTransactionNode> newQuery = new EngineQuery<>(node.nodes(), this.context.query().initialNodes());
-
-            EngineQuery<SingleTransactionNode> query = Engine.sort(Node.Collection.SINGLE, this.settings.getSortingMethod(), newQuery);
-            if (this.settings.isSortHighestToLowest()) {
-                query = query.transform(PostQueryTransformer.reversed());
-            }
-
-            new EngineGui<>(query, this.context, this.settings)
-                    .open(player);
+        public void clickInspection(Player player, EngineGui<TransactionNode.GroupedTransactionNode> gui, TransactionNode.GroupedTransactionNode node) {
+            clickGroupedInspection(this.context, this.settings, player, gui, node);
         }
     }
 }

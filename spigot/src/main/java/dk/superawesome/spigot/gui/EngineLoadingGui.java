@@ -58,7 +58,6 @@ public class EngineLoadingGui implements Listener {
                 }
             }
         };
-
         this.task = runnable.runTaskTimer(TransactionEngine.instance, 0L, 5L);
 
         Bukkit.getPluginManager().registerEvents(this, TransactionEngine.instance);
