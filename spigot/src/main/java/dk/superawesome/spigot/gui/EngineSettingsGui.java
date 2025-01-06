@@ -20,6 +20,7 @@ import org.bukkit.Material;
 import org.bukkit.SkullType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -1094,7 +1095,8 @@ public class EngineSettingsGui {
                     task.runTask(TransactionEngine.instance);
 
                     Bukkit.getScheduler().runTask(TransactionEngine.instance, () -> {
-                        if (player.getOpenInventory().getTopInventory() == null) {
+                        if (player.getOpenInventory().getTopInventory().getType() == InventoryType.PLAYER
+                                || player.getOpenInventory().getTopInventory().getType() == InventoryType.CRAFTING) {
                             // the request returned an empty query, open the settings gui again
                             open(player);
                         }
