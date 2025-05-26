@@ -44,13 +44,12 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
             @Override
             public String getQuery() {
                 return """
-                        SELECT l.created, SUM(l.amount) AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
+                        SELECT l.created, l.amount AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
-                        LEFT JOIN players p1 ON p1.id = l.fromplayer
-                        LEFT JOIN players p2 ON p2.id = l.toplayer
-                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.username != p2.username
-                        GROUP BY l.created
-                        ORDER BY l.created DESC
+                        INNER JOIN players p1 ON p1.id = l.fromplayer
+                        INNER JOIN players p2 ON p2.id = l.toplayer
+                        WHERE p1.username != p2.username
+                        ORDER BY l.created DESC;
                        """;
             }
 
@@ -59,13 +58,12 @@ public class DatabaseController implements DatabaseExecutor<SingleTransactionNod
                 String time = dateTime.getYear() + "-" + dateTime.getMonthValue() + "-" + dateTime.getDayOfMonth() + " " + dateTime.getHour() + ":" + dateTime.getMinute() + ":" + dateTime.getSecond();
 
                 return String.format("""
-                        SELECT l.created, SUM(l.amount) AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
+                        SELECT l.created, l.amount AS amount, p1.username as fromplayer, p2.username as toplayer, l.fromplayer_pre_balance, l.toplayer_pre_balance, l.paytype, l.extra
                         FROM ems_log l
-                        LEFT JOIN players p1 ON p1.id = l.fromplayer
-                        LEFT JOIN players p2 ON p2.id = l.toplayer
-                        WHERE p1.username IS NOT NULL AND p2.username IS NOT NULL AND p1.username != p2.username AND l.created > CAST('%s' AS DATETIME)
-                        GROUP BY l.created
-                        ORDER BY l.created DESC
+                        INNER JOIN players p1 ON p1.id = l.fromplayer
+                        INNER JOIN players p2 ON p2.id = l.toplayer
+                        WHERE p1.username != p2.username AND l.created > CAST('%s' AS DATETIME)
+                        ORDER BY l.created DESC;
                         """, time);
             }
         };
